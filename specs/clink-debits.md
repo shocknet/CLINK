@@ -2,13 +2,13 @@
 
 ## Overview
 
-This specification defines **CLINK Debits**, a method for applications and services to request Lightning payments from a user's wallet service using Nostr event kind `21002`. It complements [CLINK Offers](clink-offers.md) by allowing the inverse operation (debit requests) and provides users with a static endpoint (`ndebit1...`) for a more fluid and secure authorization UX compared to LNURL or NWC.
+This specification defines **CLINK Debits**, a method for applications and services to request Lightning payments from a user's wallet service using Nostr event kind `21002`. It provides users with a static endpoint (`ndebit1...`) for a more fluid and secure authorization UX, complementing [CLINK Offers](clink-offers.md) by enabling the inverse operation.
 
 ## Motivation
 
-Traditional pairing schemes often involve pre-provisioning secrets (like NWC connection strings) before sharing them with a service. This process can be unintuitive, prone to user error (key-fumbling), and introduces potential intercept vectors. Furthermore, managing unique keys per connection is challenging for services, and co-establishing terms for scenarios like recurring payments is not straightforward. Existing methods also underutilize Nostr's potential for reputation-based access control.
+Current approaches to payment requests either require complex and often insecure pre-provisioning steps, or introduce friction in establishing recurring payment terms. CLINK Debits leverages Nostr's native strengths to enable direct, event-driven payment requests between parties, creating opportunities for more sophisticated authorization flows and reputation-based rules.
 
-CLINK Debits aims to provide an improved UX: A user shares their static debit pointer (e.g., via their NIP-05 address) with a service -> The service sends a request -> The user approves the request (or has pre-approved via rules) in their wallet -> A connection with clear terms is established.
+The ideal flow is simple: A user shares their static debit pointer (e.g., via their NIP-05 address) with a service -> The service sends a request -> The user approves the request (or has pre-approved via rules) in their wallet -> A connection with clear terms is established.
 
 ## Specification
 

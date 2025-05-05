@@ -6,9 +6,9 @@ This specification defines **CLINK Offers**, a format for static payment codes i
 
 ## Motivation
 
-Reliance on LNURL often necessitates HTTP endpoints, leading to centralization or complex setups for users. CLINK Offers leverages Nostr's existing infrastructure (relays, identity, encryption) to provide a decentralized alternative for services to offer invoice generation.
+Current Lightning payment flows either require maintaining HTTP endpoints, leading to unnecessary complexity and centralization risks in self-hosted scenarios, or depend on slow and unreliable transport mechanisms that are impractical for web applications. By leveraging Nostr's native capabilities for messaging and encryption, CLINK Offers provides a more direct and robust alternative that eliminates these dependencies.
 
-When layered over Nostr-based payment execution mechanisms (like CLINK Debits, NWC, or other potential Lightning RPCs), this specification enables a seamless user experience similar to LNURL-Pay but entirely within the Nostr ecosystem.
+This approach enables truly spontaneous payments that work seamlessly across all platforms, with consistent performance and reliability regardless of the application environment.
 
 ## Specification
 
