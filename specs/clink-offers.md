@@ -6,9 +6,9 @@ This specification defines **CLINK Offers**, a format for static payment codes i
 
 ## Motivation
 
-Reliance on LNURL often necessitates HTTP endpoints, leading to centralization or complex setups for users. CLINK Offers leverages Nostr's existing infrastructure (relays, identity, encryption) to provide a decentralized alternative for services to offer invoice generation.
+Current Lightning payment flows either require maintaining HTTP endpoints, leading to unnecessary complexity and centralization risks in self-hosted scenarios, or depend on slow and unreliable transport mechanisms that are impractical for web applications. By leveraging Nostr's native capabilities for messaging and encryption, CLINK Offers provides a more direct and robust alternative that eliminates these dependencies.
 
-When layered over Nostr-based payment execution mechanisms (like CLINK Debits, NWC, or other potential Lightning RPCs), this specification enables a seamless user experience similar to LNURL-Pay but entirely within the Nostr ecosystem.
+This approach enables truly spontaneous payments that work seamlessly across all platforms, with consistent performance and reliability regardless of the application environment.
 
 ## Specification
 
@@ -110,7 +110,8 @@ Sent by the payer's wallet to the receiving service.
   "created_at": 1234567890,
   "kind": 21001,
   "tags": [
-    ["p", "<receiver_service_pubkey_hex>"]
+    ["p", "<receiver_service_pubkey_hex>"],
+    ["clink_version", "1"]
   ],
   "content": "<NIP-44 encrypted request payload>",
   "sig": "<signature>"
@@ -141,7 +142,8 @@ Sent by the receiving service back to the payer.
       "kind": 21001,
       "tags": [
         ["p", "<payer_pubkey>"],
-        ["e", "<request_event_id>"]
+        ["e", "<request_event_id>"],
+        ["clink_version", "1"]
       ],
       "content": "<NIP-44 encrypted {\"res\":\"ok\",\"bolt11\":\"<BOLT11_invoice_string>\"}>",
       "sig": "<signature>"
@@ -157,6 +159,14 @@ Sent by the receiving service back to the payer.
     }
     ```
     *Common reasons might include: invalid offer ID, invalid amount for offer type, rate limit exceeded, internal error.*
+
+### Protocol Versioning
+
+CLINK events utilize a mandatory `["clink_version", "1"]` tag. This ensures:
+1.  **Disambiguation:** Explicitly identifies events belonging to the CLINK protocol, preventing conflicts if other NIPs use the same event kind (`21001`).
+2.  **Version Compatibility:** Allows clients and services to verify they are using compatible versions of the CLINK protocol specification. Future versions may increment the version number (e.g., `"2"`).
+
+Implementations MUST include this tag in both request and response events and SHOULD reject events lacking this tag or having an unsupported version number.
 
 ## General Process Flow
 
