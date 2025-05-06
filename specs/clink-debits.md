@@ -87,7 +87,8 @@ Sent by the application/service to the user's wallet service.
   "created_at": 1234567890,
   "kind": 21002,
   "tags": [
-    ["p", "<wallet_service_pubkey_hex>"]
+    ["p", "<wallet_service_pubkey_hex>"],
+    ["clink_version", "1"]
   ],
   "content": "<NIP-44 encrypted request payload>",
   "sig": "<signature>"
@@ -137,7 +138,8 @@ Sent by the wallet service back to the application/service.
       "kind": 21002,
       "tags": [
         ["p", "<application_pubkey>"],
-        ["e", "<request_event_id>"]
+        ["e", "<request_event_id>"],
+        ["clink_version", "1"]
       ],
       "content": "<NIP-44 encrypted {\"res\":\"ok\",\"preimage\":\"<lightning_preimage>\"}>",
       "sig": "<signature>"
@@ -222,6 +224,14 @@ When a request cannot be fulfilled, the wallet service MAY respond with a GFY er
     ```
 
 Applications MUST handle GFY responses gracefully.
+
+### Protocol Versioning
+
+CLINK events utilize a mandatory `["clink_version", "1"]` tag. This ensures:
+1.  **Disambiguation:** Explicitly identifies events belonging to the CLINK protocol, preventing conflicts if other NIPs use the same event kind (`21002`).
+2.  **Version Compatibility:** Allows clients and services to verify they are using compatible versions of the CLINK protocol specification. Future versions may increment the version number (e.g., `"2"`).
+
+Implementations MUST include this tag in both request and response events and SHOULD reject events lacking this tag or having an unsupported version number.
 
 ## Process Flow Summary
 
