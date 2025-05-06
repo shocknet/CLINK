@@ -60,7 +60,7 @@ Users or services can advertise a default/primary offer (typically for spontaneo
 
 ### NIP-05 Lookup ("Lightning Addresses")
 
-To support trust-minimized Lightning Address functionality, NIP-05 servers can include a mapping for offers (typically spontaneous payment offers) using a field like `nip69` or a CLINK-specific name.
+To support trust-minimized Lightning Address functionality, NIP-05 servers can include a mapping for offers (typically spontaneous payment offers) using the `clink_offer` field.
 
 **Example NIP-05 Response:**
 ```json
@@ -68,7 +68,7 @@ To support trust-minimized Lightning Address functionality, NIP-05 servers can i
   "names": {
     "bob": "<hex_pub>"
   },
-  "nip69": { // Or potentially clink_offer
+  "clink_offer": {
     "bob": "noffer1..."
   }
 }

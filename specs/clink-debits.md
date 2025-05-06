@@ -50,7 +50,7 @@ Users can advertise their primary debit pointer in their kind `0` metadata event
 
 ### NIP-05 Lookup
 
-To simplify connecting apps to wallets via NIP-05 identifiers (like Lightning Addresses), NIP-05 servers can include a mapping for debit pointers, often using a field like `nip68` or a CLINK-specific name.
+To simplify connecting apps to wallets via NIP-05 identifiers (like Lightning Addresses), NIP-05 servers can include a mapping for debit pointers using the `clink_debit` field.
 
 **Example NIP-05 Response:**
 ```json
@@ -58,7 +58,7 @@ To simplify connecting apps to wallets via NIP-05 identifiers (like Lightning Ad
   "names": {
     "bob": "<hex_pub>"
   },
-  "nip68": { // Or potentially clink_debit
+  "clink_debit": {
     "bob": "ndebit1..."
   }
 }
