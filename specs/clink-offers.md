@@ -23,12 +23,12 @@ The static payment code is a bech32 encoded string (per [NIP-19](https://github.
   - `0`: Fixed price (Price stated in TLV `4`)
   - `1`: Variable price (Price determined by the service upon request, e.g., based on fiat conversion)
   - `2`: Spontaneous payment (Payer specifies the amount in the request)
-- `4`: (Optional) The price in millisatoshis (integer) primarily for display purposes or fixed price offers.
+- `4`: (Optional) The price in satoshis (integer) primarily for display purposes or fixed price offers.
 - `5`: (Optional) Currency code (e.g., "USD", "EUR") if the price in TLV 4 represents a non-satoshi amount. If present, pricing type `1` (Variable) MUST be used.
 
 **Default Behavior:** If neither price (TLV `4`) nor pricing type (TLV `3`) is present, the offer SHOULD be treated as type `2` (Spontaneous payment).
 
-**Amount Unit:** Amounts in TLV `4` and request/response payloads are specified in **millisatoshis** for consistency with Lightning invoices and related NIPs (NIP-57, NIP-47), even though settlement typically happens at the satoshi level.
+**Amount Unit:** Amounts in TLV `4` and request/response payloads are specified in **satoshis**.
 
 **Example Structure:**
 ```
@@ -37,7 +37,7 @@ noffer1...
   1: <relay_url>
   2: <offer_id_string>
   3: <pricing_type_flag> (0, 1, or 2, optional)
-  4: <price_in_msats> (integer, optional)
+  4: <price_in_sats> (integer, optional)
   5: <currency_code> (string, optional, requires type 1)
 ```
 
@@ -80,12 +80,12 @@ CLINK Offers can replace the LNURL-pay callback step in the NIP-57 zap flow:
 
 1.  The zapping client creates a kind `9734` zap request event.
 2.  Instead of hitting an LNURL-P endpoint, the client sends a CLINK Offer payment request (Kind `21001`, see below) to the recipient's service pubkey found in the `noffer`.
-3.  The encrypted payload of the Kind `21001` request includes both the `offer` identifier and the full kind `9734` event as a stringified JSON object in a `zap_request` field.
+3.  The encrypted payload of the Kind `21001` request includes both the `offer` identifier and the full kind `9734` event as a stringified JSON object in a `zap` field.
 4.  The receiving service decrypts the Kind `21001` content, extracts the kind `9734` event, validates it, and uses its details (amount, tags) to generate the invoice.
 5.  The receiver responds with the invoice via a Kind `21001` response event.
 6.  Once the payer pays the invoice, the receiver generates and publishes the kind `9735` zap receipt as specified in NIP-57.
 
-**Recommendation for Zap Offers:** Services supporting zaps SHOULD use an offer identifier starting with `zap` (e.g., `zap_default`, `zap_profile`) in their `noffer` string. Clients seeing this prefix can be confident in sending the `zap_request` payload. Services receiving a request for a zap-prefixed offer *without* a `zap_request` payload SHOULD treat it as a standard spontaneous payment.
+**Recommendation for Zap Offers:** Services supporting zaps SHOULD use an offer identifier starting with `zap` (e.g., `zap_default`, `zap_profile`) in their `noffer` string. Clients seeing this prefix can be confident in sending the `zap` payload. Services receiving a request for a zap-prefixed offer *without* a `zap` payload SHOULD treat it as a standard spontaneous payment.
 
 ## Nostr Events (Kind 21001)
 
@@ -123,9 +123,9 @@ Sent by the payer's wallet to the receiving service.
 ```json
 {
     "offer": "<offer_id_string>", // From noffer TLV 2
-    "amount_msats": <amount_in_msats_integer>, // Required for spontaneous/variable, optional otherwise
+    "amount": <amount_in_sats_integer>, // Required for spontaneous/variable, optional otherwise
     "payer_data": { ... }, // Optional: Arbitrary JSON object with payer info (e.g., NIP-05, name, pubkey)
-    "zap_request": "{...}" // Optional: Stringified JSON of kind 9734 zap request event for NIP-57 flow
+    "zap": "{...}" // Optional: Stringified JSON of kind 9734 zap request event for NIP-57 flow
 }
 ```
 
@@ -145,7 +145,7 @@ Sent by the receiving service back to the payer.
         ["e", "<request_event_id>"],
         ["clink_version", "1"]
       ],
-      "content": "<NIP-44 encrypted {\"res\":\"ok\",\"bolt11\":\"<BOLT11_invoice_string>\"}>",
+      "content": "<NIP-44 encrypted {\"bolt11\":\"<BOLT11_invoice_string>\"}>",
       "sig": "<signature>"
     }
     ```
@@ -153,12 +153,20 @@ Sent by the receiving service back to the payer.
 2.  **Error Response:**
     ```json
     {
-      // ... similar structure ...
-      "content": "<NIP-44 encrypted {\"res\":\"error\",\"reason\":\"<human_readable_error>\"}>",
+      "id": "<response_event_id>",
+      "pubkey": "<receiver_service_pubkey>",
+      "created_at": 1234567891,
+      "kind": 21001,
+      "tags": [
+        ["p", "<payer_pubkey>"],
+        ["e", "<request_event_id>"],
+        ["clink_version", "1"]
+      ],
+      "content": "<NIP-44 encrypted {\"error\":\"<error_message>\",\"code\":<error_code>,\"range\":{\"min\":<min_sats>,\"max\":<max_sats>}}>",
       "sig": "<signature>"
     }
     ```
-    *Common reasons might include: invalid offer ID, invalid amount for offer type, rate limit exceeded, internal error.*
+    *Common reasons might include: invalid offer ID (code 1), invalid amount for offer type (code 5, with range), rate limit exceeded, internal error.*
 
 ### Protocol Versioning
 
@@ -174,18 +182,18 @@ Implementations MUST include this tag in both request and response events and SH
 2.  **Decoding**: Payer's wallet decodes the `noffer` to get service pubkey, relay hint, offer ID, and pricing info.
 3.  **Request**: Payer's wallet constructs and sends a Kind `21001` request event to the relay, addressed to the service pubkey.
     *   Includes `offer` ID.
-    *   Includes `amount_msats` if offer type is spontaneous (`2`) or variable (`1`).
+    *   Includes `amount` if offer type is spontaneous (`2`) or variable (`1`).
     *   Optionally includes `payer_data`.
-    *   Optionally includes `zap_request` payload if performing a NIP-57 zap.
+    *   Optionally includes `zap` payload if performing a NIP-57 zap.
 4.  **Service Processing**: Receiving service listens for Kind `21001` events.
     *   Decrypts payload.
-    *   Validates the `offer` ID and `amount_msats` against offer parameters.
-    *   (If variable price) Calculates the current price in msats.
-    *   (If zap) Processes the `zap_request` event.
+    *   Validates the `offer` ID and `amount` against offer parameters.
+    *   (If variable price) Calculates the current price in sats.
+    *   (If zap) Processes the `zap` event.
     *   Generates a BOLT11 Lightning invoice.
 5.  **Response**: Service sends a Kind `21001` response event back to the payer's pubkey.
-    *   Success: Encrypted payload contains `{"res":"ok", "bolt11":"..."}`.
-    *   Failure: Encrypted payload contains `{"res":"error", "reason":"..."}`.
+    *   Success: Encrypted payload contains `{"bolt11":"..."}`.
+    *   Failure: Encrypted payload contains `{"error":"...","code":...,"range":{"min":...,"max":...}}`.
 6.  **Payment**: Payer's wallet receives the response, decrypts it.
     *   If `ok`, presents the invoice to the user for payment (or pays automatically via NWC/CLINK Debits etc.).
     *   If `error`, displays the reason to the user.
@@ -198,7 +206,7 @@ Implementations MUST include this tag in both request and response events and SH
 - MUST support sending Kind `21001` requests with NIP-44 encryption.
 - MUST support receiving Kind `21001` responses and decrypting them.
 - SHOULD handle different offer types (fixed, variable, spontaneous).
-- SHOULD support NIP-57 zap flow integration by including the `zap_request` payload.
+- SHOULD support NIP-57 zap flow integration by including the `zap` payload.
 - MAY use ephemeral keys for requests for enhanced privacy.
 
 ### Receiving Service
