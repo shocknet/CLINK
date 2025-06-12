@@ -58,10 +58,10 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 | Project      | Type    | Supports        | Features / Notes |
 |--------------|---------|----------------|------------------|
 | [Lightning.Pub](https://lightning.pub) | Server  | Offers, Debits | Reference server for wallets. |
-| [ShockWallet](https://shockwallet.app) | Wallet  | Offers, Debits | UI for approval and rules for Lightning.Pub. |
-| [Bridgelet](https://github.com/shocknet/bridgelet) | Bridge  | Offers         | NIP-05, LNURL, Lightning Address via CLINK Offers. |
+| [ShockWallet](https://shockwallet.app) | Wallet  | Offers, Debits | Pay offers and manage your offers and requests via Lightning.Pub. |
+| [Bridgelet](https://github.com/shocknet/bridgelet) | Bridge  | Offers         | Simple NIP-05, LNURL and Lightning Address bridge for your custom domain, uses Offers to fetch invoices from your node. |
 | [CLINK SDK](https://www.npmjs.com/package/@shocknet/clink-sdk) | SDK     | Offers, Debits | JS/TS library for CLINK integration. |
-| [clinkme.dev](https://clinkme.dev) | Client | Offers | Demo web-app for CLINK Offers. |
+| [clinkme.dev](https://clinkme.dev) | Web Demo | Offers | Demo of a static website using CLINK Offers. |
 | *Your project here* | - | - | PR welcome! |
 
 ## Contributing
