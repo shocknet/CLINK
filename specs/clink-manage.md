@@ -74,12 +74,77 @@ Allows an app to create, update, and delete offers on the user's wallet server.
 #### Response Payloads
 - **Success**
   ```json
-  { "res": "ok", "offer_id": "<offer_id>", "details": { ... } }
+  { "res": "ok", "resource": "offer", "id": "<offer_id>", "details": { ... } }
   ```
-- **Error**
+- **Error (GFY)**
   ```json
-  { "res": "error", "code": 1, "error": "Reason" }
+  { "res": "GFY", "code": 1, "error": "Reason" }
   ```
+
+#### GFY (General Failure to Yield) Handling
+
+When a request cannot be fulfilled, the wallet service MAY respond with a GFY error code.
+
+- `1`: Request Denied (User or rule denied the request; may precede reporting)
+- `2`: Temporary Failure (Wallet service issue, e.g., node offline)
+- `3`: Expired Request (Request timestamp too old, e.g., >30s delta)
+- `4`: Rate Limited (Requestor sending too many requests)
+- `5`: Invalid Field/Value (e.g., out of range)
+- `6`: Invalid Request (Malformed payload, missing fields, etc.)
+
+A typical GFY response payload is structured as follows:
+
+```json
+{
+  "res": "GFY",
+  "code": <gfy_code>,
+  "error": "<human_readable_error_message>"
+  // Additional fields based on code (see below)
+}
+```
+
+**Expected Payloads for Specific GFY Codes:**
+
+1. **Code 1 (Request Denied):**
+    ```json
+    {"res": "GFY", "code": 1, "error": "Request Denied"}
+    ```
+2. **Code 2 (Temporary Failure):**
+    ```json
+    {"res": "GFY", "code": 2, "error": "Temporary Failure: <reason>"}
+    ```
+3. **Code 3 (Expired Request):**
+    ```json
+    {
+      "res": "GFY", "code": 3, "error": "Expired Request",
+      "delta": {"max_delta_ms": 30000, "actual_delta_ms": <calculated_delta>}
+    }
+    ```
+4. **Code 4 (Rate Limited):**
+    ```json
+    {
+      "res": "GFY", "code": 4, "error": "Rate Limited",
+      "retry_after": <unix_timestamp> // Optional: When the client can retry
+    }
+    ```
+5. **Code 5 (Invalid Field/Value):**
+    ```json
+    {
+      "res": "GFY", "code": 5, "error": "Invalid Field/Value",
+      "field": "price_sats", "range": { "min": 1000, "max": 1000000 } // Optional: Allowed range
+    }
+    ```
+6. **Code 6 (Invalid Request):**
+    ```json
+    {"res": "GFY", "code": 6, "error": "Invalid Request: <reason>"}
+    ```
+
+#### Authorization & Ownership
+- The wallet server MUST track which app created each offer and MUST reject modification or deletion requests from other apps unless explicitly permitted by the user.
+- Offer IDs MUST be unique per wallet server. The wallet server is responsible for enforcing uniqueness.
+
+#### Updatable Fields
+- Only fields defined as updatable in the [CLINK Offers](clink-offers.md) spec may be included in the `fields` object for updates. Optional fields are supported as per the Offers spec.
 
 #### Authorization Flow
 - User shares their `nmanage1...` pointer with the app.
