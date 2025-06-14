@@ -289,4 +289,11 @@ Implementations MUST include this tag in both request and response events and SH
 - Use NIP-44 for all content encryption.
 - Payer wallets can use ephemeral keys for requests to avoid linking payments to a primary Nostr identity.
 - Receiving services should be mindful of potential rate-limiting or abuse vectors on their listening relay.
-- Consider using gift-wrapped events (NIP-59) for routing requests/responses through additional relays if metadata privacy is a high concern, though this adds complexity. 
+- Consider using gift-wrapped events (NIP-59) for routing requests/responses through additional relays if metadata privacy is a high concern, though this adds complexity.
+
+## Reference Implementations
+
+- **Wallet Node:** [Lightning.Pub](https://github.com/shocknet/Lightning.Pub)
+- **Wallet Client:** [ShockWallet](https://shockwallet.app)
+- **SDK:** [CLINK SDK](https://github.com/shocknet/ClinkSDK)
+- **Demo Client:** [clinkme.dev](https://clinkme.dev/) 

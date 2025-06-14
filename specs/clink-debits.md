@@ -325,9 +325,9 @@ When amounts are pegged to volatile assets (like fiat currencies), careful handl
 }
 ```
 
-## Reference Implementation
+## Reference Implementations
 
-- Wallet Service: [Lightning.Pub](https://github.com/shocknet/Lightning.Pub)
-- Wallet Client: [ShockWallet](https://shockwallet.app)
-- Application Demo: [demo.nip69.dev/nip68.html](https://demo.nip69.dev/nip68.html)
-- Nostr-Tools (temp fork): [nostr-tools](https://github.com/shocknet/nostr-tools) 
+- **Wallet Node:** [Lightning.Pub](https://github.com/shocknet/Lightning.Pub)
+- **Wallet Client:** [ShockWallet](https://shockwallet.app)
+- **SDK:** [CLINK SDK](https://github.com/shocknet/ClinkSDK)
+- **Demo Client:** [clinkme.dev](https://clinkme.dev/)
