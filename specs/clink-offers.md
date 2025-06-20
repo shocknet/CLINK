@@ -166,7 +166,76 @@ Sent by the receiving service back to the payer.
       "sig": "<signature>"
     }
     ```
-    *Common reasons might include: invalid offer ID (code 1), invalid amount for offer type (code 5, with range), rate limit exceeded, internal error.*
+    *Common reasons might include: an invalid offer (code 1), an expired or moved offer (code 3), or an invalid amount (code 5).*
+
+## Error Handling
+
+To ensure consistent error handling across implementations, this NIP defines the following error responses, similar to other NIPs. Clients MUST handle these error responses gracefully and display appropriate messages to users.
+
+### Error Codes
+
+- `1`: **Invalid Offer**: The requested offer ID is invalid or no longer available.
+- `2`: **Temporary Failure**: The receiver is temporarily unable to process the request.
+- `3`: **Expired or Moved Offer**: The offer has expired, been replaced, or permanently moved.
+- `4`: **Unsupported Feature**: The receiver doesn't support a feature requested by the payer.
+- `5`: **Invalid Amount**: The amount specified is too big or too small.
+
+### Error Response Payloads
+
+Error responses are sent as kind `21001` events with an encrypted `content` field containing a JSON object. The base structure is:
+
+```json
+{
+  "error": "<human_readable_error_message>",
+  "code": <error_code>
+  // Additional fields may be included depending on the error type.
+}
+```
+
+#### Code 1: Invalid Offer
+- **Payload**: `{"error": "Invalid Offer", "code": 1}`
+
+#### Code 2: Temporary Failure
+- **Payload**: `{"error": "Temporary Failure", "code": 2}`
+
+#### Code 3: Expired or Moved Offer
+When an offer has expired, been renewed, or permanently moved, the service SHOULD respond with `code: 3`.
+
+If a new version of the offer is available (e.g., renewed or moved), the service SHOULD include a `latest` field containing the new `noffer1...` string.
+
+A client receiving a `code: 3` response should check for the presence of the `latest` field.
+- If `latest` is present, the client SHOULD update its stored offer and automatically retry the request.
+- If `latest` is not present, the client MUST treat the offer as permanently expired.
+
+- **Payload (with forwarding):**
+  ```json
+  {
+    "error": "Offer has been replaced or moved.",
+    "code": 3,
+    "latest": "<new_noffer1...>"
+  }
+  ```
+- **Payload (without forwarding):**
+  ```json
+  {
+    "error": "Offer has expired.",
+    "code": 3
+  }
+  ```
+
+#### Code 4: Unsupported Feature
+- **Payload**: `{"error": "Unsupported Feature", "code": 4}`
+
+#### Code 5: Invalid Amount
+The response SHOULD include the acceptable `range` for the amount in sats.
+- **Payload**:
+```json
+{
+  "error": "Invalid Amount",
+  "code": 5,
+  "range": { "min": 10, "max": 10000000 }
+}
+```
 
 ### Protocol Versioning
 
