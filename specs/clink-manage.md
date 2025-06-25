@@ -35,6 +35,7 @@ Allows an app to create, update, and delete offers on the user's wallet server.
   ```json
   {
     "resource": "offer",
+    "pointer": "<pointer_id>", // Optional
     "action": "create",
     "offer": {
       "label": "Product X",
@@ -48,6 +49,7 @@ Allows an app to create, update, and delete offers on the user's wallet server.
   ```json
   {
     "resource": "offer",
+    "pointer": "<pointer_id>", // Optional
     "action": "update",
     "offer": {
       "id": "<offer_id>",
@@ -64,6 +66,7 @@ Allows an app to create, update, and delete offers on the user's wallet server.
   ```json
   {
     "resource": "offer",
+    "pointer": "<pointer_id>", // Optional
     "action": "delete",
     "offer": {
       "id": "<offer_id>"
