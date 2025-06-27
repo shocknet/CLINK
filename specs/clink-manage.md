@@ -6,7 +6,7 @@ CLINK Manage defines a protocol for delegated management of wallet resources by 
 
 ## Motivation
 
-Many Lightning and Nostr use-cases require apps to manage resources on behalf of a user, but only within tightly defined boundaries. CLINK Manage provides a secure, extensible, and Nostr-native way to grant and audit such permissions, starting with offer management for marketplaces, SaaS, and other dynamic pricing scenarios.
+Many Lightning and Nostr use-cases require apps to manage resources on behalf of a user, but only within tightly defined boundaries. CLINK Manage provides a secure, extensible, and Nostr-native way to grant and audit such permissions, starting with offer management for marketplaces, SaaS, and other dynamic product scenarios.
 
 ## Pointer Format
 
@@ -49,7 +49,6 @@ Allows an app to create, update, and delete offers on the user's wallet server.
   ```json
   {
     "resource": "offer",
-    "pointer": "<pointer_id>", // Optional
     "action": "update",
     "offer": {
       "id": "<offer_id>",
@@ -83,7 +82,6 @@ Allows an app to create, update, and delete offers on the user's wallet server.
   ```json
   {
     "resource": "offer",
-    "pointer": "<pointer_id>", // Optional
     "action": "delete",
     "offer": {
       "id": "<offer_id>"
