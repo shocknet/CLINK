@@ -6,7 +6,7 @@ This specification defines **CLINK Offers**, a format for static payment codes i
 
 ## Motivation
 
-Current Lightning payment flows either require maintaining HTTP endpoints, leading to unnecessary complexity and centralization risks in self-hosted scenarios, or depend on slow and unreliable transport mechanisms that are impractical for web applications. By leveraging Nostr's native capabilities for messaging and encryption, CLINK Offers provides a more direct and robust alternative that eliminates these dependencies.
+Current Lightning payment flows either require maintaining HTTP endpoints, leading to unnecessary complexity and centralization risks in self-hosted scenarios, or depend on slow and unreliable P2P transport mechanisms that are impractical for web applications. By leveraging Nostr's native capabilities for messaging and encryption, CLINK Offers provides a more direct and robust alternative that eliminates these dependencies.
 
 This approach enables truly spontaneous payments that work seamlessly across all platforms, with consistent performance and reliability regardless of the application environment.
 
@@ -290,4 +290,11 @@ Implementations MUST include this tag in both request and response events and SH
 - Use NIP-44 for all content encryption.
 - Payer wallets can use ephemeral keys for requests to avoid linking payments to a primary Nostr identity.
 - Receiving services should be mindful of potential rate-limiting or abuse vectors on their listening relay.
-- Consider using gift-wrapped events (NIP-59) for routing requests/responses through additional relays if metadata privacy is a high concern, though this adds complexity. 
+- Consider using gift-wrapped events (NIP-59) for routing requests/responses through additional relays if metadata privacy is a high concern, though this adds complexity.
+
+## Reference Implementations
+
+- **Wallet Node:** [Lightning.Pub](https://github.com/shocknet/Lightning.Pub)
+- **Wallet Client:** [ShockWallet](https://shockwallet.app)
+- **SDK:** [CLINK SDK](https://github.com/shocknet/ClinkSDK)
+- **Demo Client:** [clinkme.dev](https://clinkme.dev/) 

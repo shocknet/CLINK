@@ -45,13 +45,15 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 
 - [CLINK Offers](specs/clink-offers.md): Static payment codes (`noffer1...`) for invoice requests
 - [CLINK Debits](specs/clink-debits.md): Static authorization pointers (`ndebit1...`) for payment requests
+- [CLINK Manage](specs/clink-manage.md): Delegated management (`nmanage1...`), e.g., external apps managing offers for a user
 
 ## Event Kinds
 
-| kind | description | spec |
-|------|-------------|------|
-| `21001` | Offer Request/Response | [CLINK Offers](specs/clink-offers.md) |
-| `21002` | Debit Request/Response | [CLINK Debits](specs/clink-debits.md) |
+| kind   | description                | spec                              |
+|--------|----------------------------|------------------------------------|
+| 21001  | Offer Request/Response     | CLINK Offers                      |
+| 21002  | Debit Request/Response     | CLINK Debits                      |
+| 21003  | Management Delegation      | CLINK Manage                      |
 
 ## Implementation Status
 
