@@ -56,7 +56,6 @@ Users or services can advertise a default/primary offer (typically for spontaneo
   // ...
 }
 ```
-*(Note: The exact field name, like `clink_offer` or `nip69` if backward compatibility is desired, should be finalized)*
 
 ### NIP-05 Lookup ("Lightning Addresses")
 
