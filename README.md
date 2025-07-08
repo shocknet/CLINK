@@ -1,4 +1,4 @@
-# CLINK: Common Lightning Interactions with Nostr Keys
+# CLINK: Common Lightning Interface for Nostr Keys
 
 CLINK defines Nostr-native standards for Lightning Network interactions, leveraging the protocol's built-in transport, identity, and encryption. This enables secure communication between Lightning nodes, wallets, and applications without traditional web infrastructure dependencies while also remaining web-friendly and facilitating self-custody. This novel use of Nostr delivers a greatly enhanced user experience and unlocks new use-cases versus the status quo of things like LNURL, Bolt12, and NWC.
 
