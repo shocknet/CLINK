@@ -129,7 +129,13 @@ Sent by the application/service to the user's wallet service.
 
 Sent by the wallet service back to the application/service.
 
-1.  **ACK with Preimage (Direct Payment Success):**
+1.  **ACK Payment Success:**
+    Upon successful payment of a direct debit request, the wallet service sends a success response. The event itself, being signed by the wallet service and referencing the original request via an `e` tag, serves as a verifiable acknowledgment. The payload distinguishes between a standard Lightning payment and an internal settlement.
+
+    - For a **standard Lightning payment**, the NIP-44 encrypted `content` MUST be: `{"res":"ok","preimage":"<lightning_preimage>"}`.
+    - For an **internal settlement**, the NIP-44 encrypted `content` MUST be: `{"res":"ok"}`. The absence of a preimage indicates an internal transaction.
+
+    The overall event structure is the same for both cases, only the encrypted `content` differs:
     ```json
     {
       "id": "<response_event_id>",
@@ -141,7 +147,7 @@ Sent by the wallet service back to the application/service.
         ["e", "<request_event_id>"],
         ["clink_version", "1"]
       ],
-      "content": "<NIP-44 encrypted {\"res\":\"ok\",\"preimage\":\"<lightning_preimage>\"}>",
+      "content": "<NIP-44 encrypted payload>",
       "sig": "<signature>"
     }
     ```

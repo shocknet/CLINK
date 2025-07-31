@@ -78,6 +78,7 @@ Allows an app to create, update, and delete offers on the user's wallet server.
     "action": "list"
   }
   ```
+  The wallet server is responsible for filtering the list to only include offers created by the requesting app. Future versions of this specification may introduce pagination and additional filtering capabilities.
 - **Delete Offer**
   ```json
   {
@@ -188,7 +189,7 @@ When a request cannot be fulfilled, the wallet service MAY respond with a GFY er
 - Offer IDs MUST be unique per wallet server. The wallet server is responsible for enforcing uniqueness.
 
 #### Updatable Fields
-- Only valid fields for an offer may be included in the `fields` object for updates.
+- Only existing fields on an offer may be included in the `fields` object for an update. The server MUST NOT add new fields to an offer via this action.
 
 #### Authorization Flow
 - User shares their `nmanage1...` pointer with the app.

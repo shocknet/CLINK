@@ -265,7 +265,7 @@ Implementations MUST include this tag in both request and response events and SH
 6.  **Payment**: Payer's wallet receives the response, decrypts it.
     *   If `ok`, presents the invoice to the user for payment (or pays automatically via NWC/CLINK Debits etc.).
     *   If `error`, displays the reason to the user.
-7.  **Receipt (Optional)**: Post-payment receipt handling is outside the scope of this spec but could involve: NIP-57 zap receipts, Lightning pre-image sharing, or other out-of-band methods.
+7.  **Receipt (Optional)**: After successful payment, the receiving service MAY provide a receipt. If the original request was a NIP-57 zap, the service generates and publishes a `kind: 9735` zap receipt. For other interactions, it MAY send a direct `kind: 21001` Payment Receipt event (see below) to the payer.
 
 ## Implementation Guidance
 
@@ -290,6 +290,44 @@ Implementations MUST include this tag in both request and response events and SH
 - Payer wallets can use ephemeral keys for requests to avoid linking payments to a primary Nostr identity.
 - Receiving services should be mindful of potential rate-limiting or abuse vectors on their listening relay.
 - Consider using gift-wrapped events (NIP-59) for routing requests/responses through additional relays if metadata privacy is a high concern, though this adds complexity.
+
+## Payment Receipt
+
+To provide a definitive confirmation of payment, the receiving service MAY send a final `kind: 21001` event to the payer after the invoice has been successfully paid. This is distinct from a NIP-57 zap receipt and serves as a direct, private acknowledgment.
+
+### Receipt Event
+
+- **Kind**: `21001`
+- **Sender**: Receiving Service
+- **Recipient**: Payer
+- **Tags**:
+  - `["p", "<payer_pubkey>"]`
+  - `["e", "<request_event_id>"]`
+  - `["clink_version", "1"]`
+- **Content**: NIP-44 encrypted JSON payload.
+
+### Decrypted Receipt Payload
+
+The event itself, being signed by the wallet service and referencing the original request via an `e` tag, serves as a verifiable acknowledgment. The payload distinguishes between a standard Lightning payment and an internal settlement.
+
+1.  **Standard Lightning Payment:**
+    The payload MUST include the `preimage` to prove the Lightning payment was settled.
+    ```json
+    {
+      "res": "ok",
+      "preimage": "<64-char_hex_lightning_preimage>"
+    }
+    ```
+
+2.  **Internal Settlement:**
+    For payments settled internally, the payload is a simple acknowledgment. The absence of a `preimage` indicates an internal transaction.
+    ```json
+    {
+      "res": "ok"
+    }
+    ```
+
+This flow provides a closed loop for programmatic interactions, allowing the payers application to verify that the payment was received and unlock content or services accordingly.
 
 ## Reference Implementations
 

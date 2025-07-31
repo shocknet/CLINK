@@ -49,11 +49,11 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 
 ## Event Kinds
 
-| kind   | description                | spec                              |
-|--------|----------------------------|------------------------------------|
-| 21001  | Offer Request/Response     | CLINK Offers                      |
-| 21002  | Debit Request/Response     | CLINK Debits                      |
-| 21003  | Management Delegation      | CLINK Manage                      |
+| kind   | description                | spec                                     |
+|--------|----------------------------|------------------------------------------|
+| 21001  | Offer Request/Response     | [CLINK Offers](specs/clink-offers.md)    |
+| 21002  | Debit Request/Response     | [CLINK Debits](specs/clink-debits.md)    |
+| 21003  | Management Delegation      | [CLINK Manage](specs/clink-manage.md)    |
 
 ## Implementation Status
 
