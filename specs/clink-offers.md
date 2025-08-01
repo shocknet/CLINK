@@ -122,7 +122,7 @@ Sent by the payer's wallet to the receiving service.
 ```json
 {
     "offer": "<offer_id_string>", // From noffer TLV 2
-    "amount": <amount_in_sats_integer>, // Required for spontaneous/variable, optional otherwise
+    "amount_sats": <amount_in_sats_integer>, // Required for spontaneous/variable, optional otherwise
     "payer_data": { ... }, // Optional: Arbitrary JSON object with payer info (e.g., NIP-05, name, pubkey)
     "zap": "{...}" // Optional: Stringified JSON of kind 9734 zap request event for NIP-57 flow
 }
@@ -250,12 +250,12 @@ Implementations MUST include this tag in both request and response events and SH
 2.  **Decoding**: Payer's wallet decodes the `noffer` to get service pubkey, relay hint, offer ID, and pricing info.
 3.  **Request**: Payer's wallet constructs and sends a Kind `21001` request event to the relay, addressed to the service pubkey.
     *   Includes `offer` ID.
-    *   Includes `amount` if offer type is spontaneous (`2`) or variable (`1`).
+    *   Includes `amount_sats` if offer type is spontaneous (`2`) or variable (`1`).
     *   Optionally includes `payer_data`.
     *   Optionally includes `zap` payload if performing a NIP-57 zap.
 4.  **Service Processing**: Receiving service listens for Kind `21001` events.
     *   Decrypts payload.
-    *   Validates the `offer` ID and `amount` against offer parameters.
+    *   Validates the `offer` ID and `amount_sats` against offer parameters.
     *   (If variable price) Calculates the current price in sats.
     *   (If zap) Processes the `zap` event.
     *   Generates a BOLT11 Lightning invoice.
