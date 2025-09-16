@@ -124,7 +124,9 @@ Sent by the payer's wallet to the receiving service.
     "offer": "<offer_id_string>", // From noffer TLV 2
     "amount_sats": <amount_in_sats_integer>, // Required for spontaneous/variable, optional otherwise
     "payer_data": { ... }, // Optional: Arbitrary JSON object with payer info (e.g., NIP-05, name, pubkey)
-    "zap": "{...}" // Optional: Stringified JSON of kind 9734 zap request event for NIP-57 flow
+    "zap": "{...}", // Optional: Stringified JSON of kind 9734 zap request event for NIP-57 flow
+    "expires_in_seconds": <number_of_seconds_integer>, // Optional: Requested invoice expiry time
+    "description": "<string>" // Optional: A description to be included in the invoice, max 100 chars
 }
 ```
 
