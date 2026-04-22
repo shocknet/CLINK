@@ -64,6 +64,7 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 | [Bridgelet](https://github.com/shocknet/bridgelet) | Bridge  | Offers         | Simple NIP-05, LNURL and Lightning Address bridge for your custom domain, uses Offers to fetch invoices from your node. |
 | [CLINK SDK](https://www.npmjs.com/package/@shocknet/clink-sdk) | SDK     | Offers, Debits | JS/TS library for CLINK integration. |
 | [clinkme.dev](https://clinkme.dev) | Web Demo | Offers | Demo of a static website using CLINK Offers. |
+| [bxrd.app](https://bxrd.app) | Nostr Graph Client | Debits | A graph-based Nostr Client with Debit integration for Zaps. |
 | *Your project here* | - | - | PR welcome! |
 
 ## Contributing
