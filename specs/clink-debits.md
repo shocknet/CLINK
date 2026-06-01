@@ -103,7 +103,8 @@ Sent by the application/service to the user's wallet service.
         "pointer": "<pointer_id>", // Optional, from ndebit TLV 2
         "amount_sats": 10000, // Optional: Wallet MAY require for rules processing
         "bolt11": "<BOLT11_invoice_string>",
-        "description": "<optional_app_data>"
+        "description": "<optional_app_data>",
+        "k1": "<k1_string_identifier>" // Optional: unique identifier for debit request, requests will fail if an identifier is reused 
     }
     ```
 
