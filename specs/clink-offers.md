@@ -14,7 +14,7 @@ This approach enables truly spontaneous payments that work seamlessly across all
 
 ### Static Payment Code Format (`noffer`)
 
-The static payment code is a bech32 encoded string (per [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md)) prefixed with `noffer`. The encoded string includes the following TLV (Type-Length-Value) items:
+The static payment code is a single bech32 encoded string (per [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md)). Its human-readable prefix (HRP) is `noffer`. Per bech32, the encoded form is the HRP, a separator character `1`, then the data — so a valid offer string is literally `noffer1<data>` with no colon or other delimiter (e.g. `noffer1qvq...`, not `noffer:noffer1...`). The encoded data includes the following TLV (Type-Length-Value) items:
 
 - `0`: The 32-byte public key of the receiving service (hex encoded).
 - `1`: A recommended relay URL where the receiving service listens for payment requests.
@@ -40,6 +40,16 @@ noffer1...
   4: <price_in_sats> (integer, optional)
   5: <currency_code> (string, optional, requires type 1)
 ```
+
+### Display and QR Encoding
+
+The static payment code is the complete bech32 string: `noffer1<data>`. There is no separate URI scheme, label, or wrapper — the scanned or shared value is exactly that one string.
+
+**QR codes:** The QR payload MUST be that string encoded as plain text (e.g. `noffer1qvq...`). Implementations MUST NOT prepend `noffer:`, use BIP-21 URIs, LNURL strings, HTTP(S) URLs, or encode TLV fields without the bech32 wrapper.
+
+**What QR codes are not:** An offer QR is not a BOLT11 invoice. Invoices are generated dynamically after a kind `21001` request and MUST NOT be substituted for the static offer code.
+
+**Wallet behavior:** Payer wallets MUST recognize a scanned or pasted string that matches the bech32 `noffer` HRP (i.e. starts with `noffer1`) as a CLINK Offer and decode it per this specification.
 
 ## Integration with Nostr
 
@@ -272,7 +282,7 @@ Implementations MUST include this tag in both request and response events and SH
 ## Implementation Guidance
 
 ### Payer Wallet
-- MUST support decoding `noffer` strings.
+- MUST support decoding `noffer` strings received via scan, paste, or click.
 - MUST support sending Kind `21001` requests with NIP-44 encryption.
 - MUST support receiving Kind `21001` responses and decrypting them.
 - SHOULD handle different offer types (fixed, variable, spontaneous).
@@ -281,6 +291,7 @@ Implementations MUST include this tag in both request and response events and SH
 
 ### Receiving Service
 - MUST generate `noffer` strings correctly.
+- MUST encode offer QR codes as the raw `noffer1...` plain-text string (see [Display and QR Encoding](#display-and-qr-encoding)).
 - MUST listen for Kind `21001` requests on its advertised relay.
 - MUST validate requests against offer parameters.
 - MUST generate BOLT11 invoices.
