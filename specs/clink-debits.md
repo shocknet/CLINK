@@ -2,7 +2,7 @@
 
 ## Overview
 
-This specification defines **CLINK Debits**, a method for applications and services to request Lightning payments from a user's wallet service using Nostr event kind `21002`. It provides users with a static endpoint (`ndebit1...`) for a more fluid and secure authorization UX, complementing [CLINK Offers](clink-offers.md) by enabling the inverse operation.
+This specification defines **CLINK Debits**, a method for applications and users to request Lightning payments via another user's or application operator's **node service** using Nostr event kind `21002`. It provides static or session endpoints (`ndebit1...`) for a more fluid and secure authorization UX, complementing [CLINK Offers](clink-offers.md) by enabling the inverse operation.
 
 ## Motivation
 
@@ -16,20 +16,56 @@ The ideal flow is simple: A user shares their static debit pointer (e.g., via th
 
 A debit request pointer is a bech32 encoded string (per [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md)) prefixed with `ndebit`. The encoded string includes the following TLV (Type-Length-Value) items:
 
-- `0`: The 32-byte public key of the user's wallet service (hex encoded).
-- `1`: A recommended relay URL where the wallet service listens for requests.
-- `2`: (Optional) An opaque pointer identifier string, used by the wallet service to route or identify the request target (e.g., a specific budget or account).
+- `0`: The 32-byte public key of the **node service** (hex encoded) — the service that receives kind `21002` events and processes debits.
+- `1`: Relay URL where the node service listens for requests.
+- `2`: (Optional) An opaque pointer identifier string, used by the node service to route or identify the request target (e.g., a specific budget, account, or application).
+- `3`: (Optional) A session identifier (`k1`). Exactly 32 bytes of opaque binary data, used to correlate a single debit attempt (e.g., an ATM withdrawal session). MUST be generated with a cryptographically secure random number generator when present.
 
-If the pointer ID (TLV `2`) is omitted in the `ndebit` string, the requestor MAY assume the wallet service's public key itself acts as the identifier and MAY omit the `pointer` field in the request payload.
+In **authorization flows**, the node service is the backend serving the debited user's wallet (an application sends kind `21002` debit request to them). In **session flows**, the node service is an application operator's backend (e.g., Lightning.Pub) that the user withdraws from.
 
-**Example Pointer Structure:**
+If the pointer ID (TLV `2`) is omitted in the `ndebit` string, the requestor MAY assume the node service's public key itself acts as an identifier and MAY omit the `pointer` field in the request payload.
+
+**Static vs Session ndebits:**
+
+- A **static pointer** contains TLV items `0`–`2` only. It MAY be published in NIP-05, kind `0` metadata, or other long-lived contexts.
+- A **session ndebit** is a static pointer plus a **session identifier** in TLV `3` (`k1`). It is minted per interaction (e.g., one QR per withdrawal) and MUST NOT be published as a user's primary `clink_debit`.
+
+**Roles in session flows:** LNURL-withdraw-like use cases involve three parties, which should not be conflated:
+
+- **Application:** the operator of the dispenser (e.g., an ATM). It mints session ndebit QRs (each embedding a fresh session identifier in TLV `3`) and displays the QR.
+- **Requestor wallet:** the end user's wallet client. It scans the QR, constructs the BOLT11 invoice, and sends the kind `21002` request.
+- **Node service:** the backend identified by TLV `0`. Receives kind `21002` events and processes debits per its policy.
+
+**LNURL-withdraw-like flows:** Session ndebits address the same class of use cases as [LNURL-withdraw](https://github.com/lnurl/luds/blob/luds/03.md) (LUD-03): an application displays a QR, a requestor wallet scans it, and the node service pays out once the interaction is correlated to a specific session. In LNURL-withdraw, an ephemeral `k1` ties the wallet's invoice submission back to that session. CLINK Debits achieves the same correlation over Nostr: the application mints a session ndebit with a fresh session identifier (TLV `3`), the requestor wallet sends a kind `21002` request carrying the matching `k1`, and the node service pays the requestor's invoice. Coordinating with the application (e.g., approval before payout, notifying it of settlement) is outside the scope of this specification and depends on the node service implementation. Static pointers remain the right model for long-lived authorization (subscriptions, pre-approved debits); session ndebits are for one-shot payouts.
+
+**Example Static Pointer Structure:**
 
 ```
 ndebit1...
-  0: <wallet_service_pubkey_hex>
+  0: <node_service_pubkey_hex>
   1: <relay_url>
   2: <pointer_id> (optional)
 ```
+
+**Example Session ndebit Structure:**
+
+```
+ndebit1...
+  0: <node_service_pubkey_hex>
+  1: <relay_url>
+  2: <pointer_id> (optional)
+  3: <32-byte session identifier (k1)>
+```
+
+### Display and QR Encoding
+
+The debit pointer is the complete bech32 string: `ndebit1<data>`. There is no separate URI scheme, label, or wrapper — the scanned or shared value is exactly that one string.
+
+**QR codes:** The QR payload MUST be that string encoded as plain text (e.g. `ndebit1qvq...`). Implementations MUST NOT prepend `ndebit:`, append query parameters, use BIP-21 URIs, LNURL strings, HTTP(S) URLs, or encode TLV fields without the bech32 wrapper.
+
+**What QR codes are not:** A debit QR is not a BOLT11 invoice. Invoices are supplied in the kind `21002` request payload and MUST NOT be substituted for the debit pointer.
+
+**Wallet behavior:** Requestor wallets MUST recognize a scanned or pasted string that matches the bech32 `ndebit` HRP (i.e. starts with `ndebit1`) as a CLINK Debit pointer and decode it per this specification. If TLV `3` is present, the wallet MUST include a `k1` field in the kind `21002` request payload set to the lowercase hexadecimal encoding of those 32 bytes (64 characters). If TLV `3` is absent, the wallet MUST NOT invent a `k1` value.
 
 ## Integration with Nostr
 
@@ -77,17 +113,17 @@ CLINK Debits uses ephemeral event kind `21002` for requests and responses.
 
 ### Debit Request Event
 
-Sent by the application/service to the user's wallet service.
+Sent to the node service identified by the key and pointer.
 
 **Example Request:**
 ```json
 {
   "id": "<request_event_id>",
-  "pubkey": "<application_pubkey>",
+  "pubkey": "<requestor_pubkey>",
   "created_at": 1234567890,
   "kind": 21002,
   "tags": [
-    ["p", "<wallet_service_pubkey_hex>"],
+    ["p", "<node_service_pubkey_hex>"],
     ["clink_version", "1"]
   ],
   "content": "<NIP-44 encrypted request payload>",
@@ -101,10 +137,10 @@ Sent by the application/service to the user's wallet service.
     ```json
     {
         "pointer": "<pointer_id>", // Optional, from ndebit TLV 2
-        "amount_sats": 10000, // Optional: Wallet MAY require for rules processing
+        "amount_sats": 10000, // Optional: node service MAY require for rules processing
         "bolt11": "<BOLT11_invoice_string>",
         "description": "<optional_app_data>",
-        "k1": "<k1_string_identifier>" // Optional: unique identifier for debit request, requests will fail if an identifier is reused 
+        "k1": "<64-char lowercase hex>" // Optional: session identifier; see Session Identifiers (k1) below
     }
     ```
 
@@ -122,16 +158,25 @@ Sent by the application/service to the user's wallet service.
     ```
 
 **Notes on Request Payload:**
-- The wallet service MAY require `amount_sats` even for direct payments to process rules without decoding the invoice, but MUST verify the invoice amount upon payment.
+- The node service MAY require `amount_sats` even for direct payments to process rules without decoding the invoice, but MUST verify the invoice amount upon payment.
 - For budget requests, omitting `frequency` implies a one-time budget.
-- A request with no `bolt11`, no `amount_sats`, and no `frequency` is implicitly a request for unrestricted access linked to the `pointer` (or the wallet pubkey if `pointer` is absent), subject to wallet service policy and user approval.
+- A request with no `bolt11`, no `amount_sats`, and no `frequency` is implicitly a request for unrestricted access linked to the `pointer` (or the node service pubkey if `pointer` is absent), subject to node service policy and user approval.
+
+**Session Identifiers (`k1`):**
+
+The `k1` field correlates a kind `21002` debit request with a specific session at the receiving service (e.g., matching a pending withdrawal at an ATM to the customer's payment).
+
+- When debiting from a **session ndebit** (ndebit with a session identifier in TLV `3`), the requestor MUST set `k1` to the lowercase hexadecimal encoding of the 32-byte TLV `3` value.
+- When debiting from a **static pointer** (no TLV `3`), the requestor MUST omit `k1`.
+- The node service SHOULD treat each `k1` as single-use within the scope of the target `pointer` (or node service pubkey if `pointer` is absent) and SHOULD reject or ignore reuse of a previously consumed `k1`.
+- The `k1` field in the JSON payload is the hex representation; TLV `3` in the ndebit is the binary form of the same session identifier.
 
 ### Response Event
 
-Sent by the wallet service back to the application/service.
+Sent by the node service upon completing or rejecting a debit request. The kind `21002` response MUST be addressed to the pubkey that signed the original request (`["p", "<requestor_pubkey>"]`).
 
 1.  **ACK Payment Success:**
-    Upon successful payment of a direct debit request, the wallet service sends a success response. The event itself, being signed by the wallet service and referencing the original request via an `e` tag, serves as a verifiable acknowledgment. The payload distinguishes between a standard Lightning payment and an internal settlement.
+    Upon successful payment of a direct debit request, the node service sends a success response. The event itself, being signed by the node service and referencing the original request via an `e` tag, serves as a verifiable acknowledgment. The payload distinguishes between a standard Lightning payment and an internal settlement.
 
     - For a **standard Lightning payment**, the NIP-44 encrypted `content` MUST be: `{"res":"ok","preimage":"<lightning_preimage>"}`.
     - For an **internal settlement**, the NIP-44 encrypted `content` MUST be: `{"res":"ok"}`. The absence of a preimage indicates an internal transaction.
@@ -140,11 +185,11 @@ Sent by the wallet service back to the application/service.
     ```json
     {
       "id": "<response_event_id>",
-      "pubkey": "<wallet_service_pubkey>",
+      "pubkey": "<node_service_pubkey>",
       "created_at": 1234567891,
       "kind": 21002,
       "tags": [
-        ["p", "<application_pubkey>"],
+        ["p", "<requestor_pubkey>"],
         ["e", "<request_event_id>"],
         ["clink_version", "1"]
       ],
@@ -173,12 +218,12 @@ Sent by the wallet service back to the application/service.
 
 ## GFY (General Failure to Yield) Handling
 
-When a request cannot be fulfilled, the wallet service MAY respond with a GFY error code.
+When a request cannot be fulfilled, the node service MAY respond with a GFY error code.
 
 **GFY Codes:**
 
 - `1`: Request Denied (User or rule denied the request; may precede reporting)
-- `2`: Temporary Failure (Wallet service issue, e.g., node offline)
+- `2`: Temporary Failure (Node service issue, e.g., node offline)
 - `3`: Expired Request (Request timestamp too old, e.g., >30s delta)
 - `4`: Rate Limited (Requestor sending too many requests)
 - `5`: Invalid Amount (Amount outside acceptable range or budget)
@@ -230,7 +275,7 @@ When a request cannot be fulfilled, the wallet service MAY respond with a GFY er
     {"res": "GFY", "code": 6, "error": "Invalid Request: <reason>"}
     ```
 
-Applications MUST handle GFY responses gracefully.
+Requestors MUST handle GFY responses gracefully.
 
 ### Protocol Versioning
 
@@ -242,21 +287,34 @@ Implementations MUST include this tag in both request and response events and SH
 
 ## Process Flow Summary
 
+### Authorization flow
+
 1.  **Discovery**: Application obtains the user's `ndebit` pointer (e.g., via NIP-05 lookup or direct sharing).
-2.  **Parsing**: Application extracts the wallet service pubkey, relay hint, and optional pointer ID.
-3.  **Request**: Application sends a kind `21002` event (direct payment or budget request) to the relay, addressed to the wallet service pubkey.
-4.  **Wallet Service Processing**: Wallet service receives the event.
+2.  **Parsing**: Application extracts the node service pubkey, relay hint, and optional pointer ID.
+3.  **Request**: Application sends a kind `21002` event to the relay, addressed to the node service pubkey.
+4.  **Node Service Processing**: Node service receives the event.
     *   It authenticates the request (e.g., checks if the app pubkey is known/allowed).
     *   It evaluates the request against user rules or prompts the user for approval.
-5.  **Response**: Wallet service sends a kind `21002` response event back to the application pubkey.
+5.  **Response**: Node service sends a kind `21002` response event to the requestor pubkey.
     *   **Success (Direct Payment)**: Includes `{"res":"ok", "preimage":"..."}`.
     *   **Success (Budget Approval)**: Includes `{"res":"ok"}`.
     *   **Failure**: Includes `{"res":"GFY", ...}`.
 6.  **Application Handling**: Application receives and processes the response.
 
+### Session flow
+
+1.  **Discovery**: Requestor wallet scans a session ndebit QR displayed by the application.
+2.  **Parsing**: Requestor wallet extracts the node service pubkey, relay hint, pointer ID, and session identifier (TLV `3` / `k1`).
+3.  **Request**: Requestor wallet sends a kind `21002` direct payment request (BOLT11 invoice and `k1`) to the relay, addressed to the node service pubkey.
+4.  **Node Service Processing**: Node service receives the event.
+    *   It processes the request per its policy (which may include out-of-band coordination with the application before paying).
+5.  **Response**: Node service sends a kind `21002` response event to the requestor wallet pubkey.
+    *   **Success (Direct Payment)**: Includes `{"res":"ok", "preimage":"..."}`.
+    *   **Failure**: Includes `{"res":"GFY", ...}`.
+
 ## Implementation Guidance
 
-### Wallet Service
+### Node Service
 
 **MUST:**
 - Listen for kind `21002` events on specified relays (or relays user configures).
@@ -267,6 +325,7 @@ Implementations MUST include this tag in both request and response events and SH
 **SHOULD:**
 - Provide a UI for users to manage permissions, budgets, and rules.
 - Distinguish between direct payment and budget requests in approval prompts.
+- Track pending and consumed `k1` values per `pointer` and reject duplicate session identifiers.
 - Handle request idempotency or replacement (e.g., only process the latest request from a given app pubkey if multiple are pending).
 - Implement robust budget tracking (amount, frequency resets).
 - Consider adding fee reserves to budgets based on policy.
@@ -275,7 +334,9 @@ Implementations MUST include this tag in both request and response events and SH
 ### Wallet Client (UI)
 
 **MUST:**
-- Display notifications/prompts for pending requests requiring user approval.
+- Display notifications/prompts for pending requests requiring user approval (authorization flows).
+- When initiating a debit from a decoded session ndebit, include `k1` in the kind `21002` payload as specified in Session Identifiers (`k1`).
+- Listen for kind `21002` responses to session ndebit requests and surface failures to the user.
 
 **SHOULD:**
 - Show completed CLINK Debit payments in transaction history.
@@ -288,24 +349,29 @@ Implementations MUST include this tag in both request and response events and SH
 
 ### Application
 
-**MUST:**
+**MUST (authorization flows):**
 - Obtain the user's `ndebit` pointer.
 - Send well-formed kind `21002` request events.
 - Listen for kind `21002` response events via Nostr subscriptions.
 - Handle `ok` and `GFY` responses appropriately.
 
+**MUST (session flows):**
+- When minting session ndebit QRs, generate a fresh 32-byte session identifier (TLV `3`) per session and encode a new `ndebit1...` string for each QR.
+
 **SHOULD:**
 - Make the requesting pubkey, event ID, or signature easily verifiable by the user/wallet client.
 - Handle scenarios where a previous request might be superseded before a response is received.
-- Consider using budget requests even for one-time payments if invoice expiry or retries are concerns (allows wallet service more flexibility).
+- Consider using budget requests even for one-time payments if invoice expiry or retries are concerns (allows node service more flexibility).
+- Treat each `k1` as single-use at the application layer; do not issue a new session QR for a retry while a prior session is still pending settlement.
 
 ## Security Considerations
 
-1.  **Encryption**: All `content` payloads MUST use NIP-44 encryption between the application and wallet service.
-2.  **Authorization**: Wallet services MUST implement strong authorization logic. Permissions should be granular (per-app pubkey, per-pointer ID if used) and constrained by user-approved budgets/rules.
+1.  **Encryption**: All `content` payloads MUST use NIP-44 encryption between the requestor and node service.
+2.  **Authorization**: Node services MUST implement strong authorization logic. Permissions should be granular (per-app pubkey, per-pointer ID if used) and constrained by user-approved budgets/rules.
 3.  **User Education**: Users must understand the implications of granting permissions, especially for automatic approvals or recurring budgets.
-4.  **Abuse Prevention**: Wallet services should consider rate limiting, reputation tracking (e.g., NIP-56 integration), or other mechanisms to discourage spam/abuse.
-5.  **Atomic Operations**: Wallet services should ensure payment processing and budget deduction are atomic to prevent race conditions or overspending.
+4.  **Abuse Prevention**: Node services should consider rate limiting, reputation tracking (e.g., NIP-56 integration), or other mechanisms to discourage spam/abuse.
+5.  **Atomic Operations**: Node services should ensure payment processing and budget deduction are atomic to prevent race conditions or overspending.
+6.  **Session Identifiers**: Node services that accept `k1` SHOULD treat each value as single-use within the scope of the target `pointer`. Implementations that correlate sessions with an application (e.g., an ATM) MUST NOT rely on amount alone; approval coordination is outside the scope of this specification and typically done with a management RPC.
 
 ## Handling Fluctuating Amounts (e.g., Fiat Pricing)
 
@@ -320,7 +386,7 @@ When amounts are pegged to volatile assets (like fiat currencies), careful handl
 ### Service-side (Application)
 - Services MAY send updated budget requests if exchange rates change significantly.
 - Updated requests MUST use the same `pointer` value to link to the existing budget.
-- Wallet services MUST treat updated budget requests that exceed prior auto-approval limits as new requests requiring user confirmation.
+- Node services MUST treat updated budget requests that exceed prior auto-approval limits as new requests requiring user confirmation.
 
 **Example Updated Budget Request Payload:**
 ```json
@@ -334,7 +400,7 @@ When amounts are pegged to volatile assets (like fiat currencies), careful handl
 
 ## Reference Implementations
 
-- **Wallet Node:** [Lightning.Pub](https://github.com/shocknet/Lightning.Pub)
+- **Node service:** [Lightning.Pub](https://github.com/shocknet/Lightning.Pub)
 - **Wallet Client:** [ShockWallet](https://shockwallet.app)
 - **SDK:** [CLINK SDK](https://github.com/shocknet/ClinkSDK)
 - **Demo Client:** [clinkme.dev](https://clinkme.dev/)
