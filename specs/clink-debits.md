@@ -169,6 +169,8 @@ The `k1` field correlates a kind `21002` debit request with a specific session a
 - When debiting from a **session ndebit** (ndebit with a session identifier in TLV `3`), the requestor MUST set `k1` to the lowercase hexadecimal encoding of the 32-byte TLV `3` value.
 - When debiting from a **static pointer** (no TLV `3`), the requestor MUST omit `k1`.
 - The node service SHOULD treat each `k1` as single-use within the scope of the target `pointer` (or node service pubkey if `pointer` is absent) and SHOULD reject or ignore reuse of a previously consumed `k1`.
+- A `k1` is **consumed** when the node service accepts a valid request for approval or payout processing. Structural failures (e.g., cannot decrypt, malformed event) and payload validation failures (e.g., invalid amount, un-decodable BOLT11) MUST NOT consume `k1`; the requestor MAY retry the same `k1` with a corrected request.
+- While a session is pending approval or payout, the node service SHOULD reject a duplicate `k1` with a GFY response (e.g., code `6`).
 - The `k1` field in the JSON payload is the hex representation; TLV `3` in the ndebit is the binary form of the same session identifier.
 
 ### Response Event
@@ -219,6 +221,8 @@ Sent by the node service upon completing or rejecting a debit request. The kind 
 ## GFY (General Failure to Yield) Handling
 
 When a request cannot be fulfilled, the node service MAY respond with a GFY error code.
+
+GFY responses on kind `21002` are always addressed to the **requestor** (the pubkey that signed the request). How the node service notifies the application (e.g., an ATM) of approval, settlement, or post-approval failure is implementation-specific and outside this specification.
 
 **GFY Codes:**
 
@@ -274,6 +278,7 @@ When a request cannot be fulfilled, the node service MAY respond with a GFY erro
     ```json
     {"res": "GFY", "code": 6, "error": "Invalid Request: <reason>"}
     ```
+    e.g. duplicate `k1` while session pending: `"K1 already processed"`
 
 Requestors MUST handle GFY responses gracefully.
 
