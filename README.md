@@ -5,6 +5,8 @@
 
 CLINK defines Nostr-native standards for Lightning Network interactions, leveraging the protocol's built-in transport, identity, and encryption. This enables secure communication between Lightning nodes, wallets, and applications without traditional web infrastructure dependencies while also remaining web-friendly and facilitating self-custody. This novel use of Nostr delivers a greatly enhanced user experience and unlocks new use-cases versus the status quo of things like LNURL, Bolt12, and NWC.
 
+![Diagram](diagram.png)
+
 ## About
 
 ### Purpose
@@ -64,6 +66,7 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 |--------------|---------|----------------|------------------|
 | [Lightning.Pub](https://lightning.pub) | Server  | Offers, Debits | Reference server for wallets. |
 | [ShockWallet](https://shockwallet.app) | Wallet  | Offers, Debits | Pay offers and manage your offers and requests via Lightning.Pub. |
+| [Zeus Wallet](https://zeusln.com) | Wallet  | Offers | Pay offers, ZEUS Pay users get an offer by default. |
 | [Bridgelet](https://github.com/shocknet/bridgelet) | Bridge  | Offers         | Simple NIP-05, LNURL and Lightning Address bridge for your custom domain, uses Offers to fetch invoices from your node. |
 | [CLINK SDK](https://www.npmjs.com/package/@shocknet/clink-sdk) | SDK     | Offers, Debits | JS/TS library for CLINK integration. |
 | [clinkme.dev](https://clinkme.dev) | Web Demo | Offers | Demo of a static website using CLINK Offers. |
