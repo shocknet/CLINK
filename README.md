@@ -1,5 +1,5 @@
-![Logo (Light Theme)](CLINK_dark.svg#gh-light-mode-only)
-![Logo (Dark Theme)](CLINK_light.svg#gh-dark-mode-only)
+![Logo (Light Theme)](CLINK_light.svg#gh-light-mode-only)
+![Logo (Dark Theme)](CLINK_dark.svg#gh-dark-mode-only)
 
 # CLINK: Common Lightning Interface for Nostr Keys
 
