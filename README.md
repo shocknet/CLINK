@@ -7,29 +7,27 @@ CLINK defines Nostr-native standards for Lightning Network interactions, leverag
 
 ![Diagram](diagram.png)
 
+- [About](#about)
+- [CLINK vs NWC](#clink-vs-nwc)
+- [Specifications](#specifications)
+- [Event Kinds](#event-kinds)
+- [Ecosystem](#ecosystem)
+- [Contributing](#contributing)
+
 ## About
 
-### Purpose
+CLINK provides standardized, **Nostr-native** methods for common Lightning interactions. By building directly on Nostr's capabilities, it enables secure integration between Lightning applications and node services without compromising sovereignty.
 
-The primary goal of CLINK is to provide standardized, **Nostr-native** methods for common Lightning interactions. By building directly on Nostr's capabilities, CLINK enables secure integration between Lightning applications and node services that enhances the user experience without compromising sovereignty.
+Current Lightning interaction methods have a number of pitfalls. Some require maintaining traditional web infrastructure, adding undue complexity to self-hosting that results in custodial solutions. Others introduce friction and security risks through pre-shared secrets, or depend on slow and unreliable onion messages that are impractical for web applications.
 
-### Motivation
+CLINK leverages Nostr's native strengths to enable direct, identity-driven interactions between Lightning nodes and applications:
 
-Current Lightning interaction methods have a number of pitfalls. Some require maintaining traditional web infrastructure, adding undue complexity to self-hosting that results in custodial solutions. Others either introduce friction and security risks through pre-shared secrets, or suffer from dependence on slow and unreliable onion messages that are also impractical for use in web applications. These approaches have created significant barriers to broad adoption.
-
-CLINK leverages Nostr's native strengths to enable direct, identity-driven interactions between Lightning nodes and applications. By building on Nostr's cryptographic primitives, CLINK aims to:
-
-*   **Simplify User Experience:** Enable direct, spontaneous interactions in a way that is compatible with familiar Nostr identifiers (e.g., NIP-05 addresses).
+*   **Simplify User Experience:** Enable direct, spontaneous interactions compatible with familiar Nostr identifiers (e.g., NIP-05 addresses).
 *   **Reduce Infrastructure Dependency:** Operate entirely over the Nostr network where desired, eliminating the need for traditional web infrastructure.
 *   **Enhance Security & Leverage Web-of-Trust:** Utilize Nostr's cryptographic identity and signed events for establishing connections and authorizing actions.
 *   **Foster a Native Ecosystem:** Provide standardized protocols built *for* Nostr, enabling tighter integration between Lightning and Nostr-powered applications.
 
-### Core CLINK Protocols
-
-* **CLINK Offers:** Provides static payment codes (`noffer1...`) analogous to LNURL-Pay but entirely Nostr-native. Enables services to offer invoice generation via Nostr direct messages, removing the requirement for a publicly accessible HTTPS endpoint but without unreliable P2P performance. Services like Lightning.Pub can trigger webhooks on offer events, enabling easy integration with traditional application flows while maintaining self-custody.
-* **CLINK Debits:** Provides static debit authorization pointers (`ndebit1...`) enabling direct, secure payment requests between parties by leveraging key-based identity and event-based authorization flows. This eliminates reliance on custodial APIs or key distribution for debit-style functionality.
-
-### Is this similar to NWC?
+## CLINK vs NWC
 
 While NWC also utilizes Nostr for transport, it specifically targets **wallet remote control** modeled after the RPC pioneered by Lightning.Pub and ShockWallet to provide a Nostr-tunneled API.
 
@@ -41,16 +39,11 @@ This comprehensive and protocol-based approach facilitates a more integrated arc
 
 Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fundamentally committed to Nostr as the foundation for the next generation of decentralized Lightning applications.**
 
-- [Specifications](#specifications)
-- [Event Kinds](#event-kinds)
-- [Implementation Status](#implementation-status)
-- [Contributing](#contributing)
-
 ## Specifications
 
-- [CLINK Offers](specs/clink-offers.md): Static payment codes (`noffer1...`) for invoice requests
-- [CLINK Debits](specs/clink-debits.md): Static authorization pointers (`ndebit1...`) for payment requests
-- [CLINK Manage](specs/clink-manage.md): Delegated management (`nmanage1...`), e.g., external apps managing offers for a user
+- [CLINK Offers](specs/clink-offers.md): Static payment codes (`noffer1...`) analogous to LNURL-Pay but entirely Nostr-native. Enables invoice generation via Nostr direct messages without a publicly accessible HTTPS endpoint. Services like Lightning.Pub can trigger webhooks on offer events for easy integration while maintaining self-custody.
+- [CLINK Debits](specs/clink-debits.md): Static authorization pointers (`ndebit1...`) for direct, secure payment requests between parties via key-based identity and event-based authorization flows.
+- [CLINK Manage](specs/clink-manage.md): Delegated management (`nmanage1...`), e.g., external apps managing offers for a user.
 
 ## Event Kinds
 
@@ -60,7 +53,7 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 | 21002  | Debit Request/Response     | [CLINK Debits](specs/clink-debits.md)    |
 | 21003  | Management Delegation      | [CLINK Manage](specs/clink-manage.md)    |
 
-## Implementation Status
+## Ecosystem
 
 | Project      | Type    | Supports        | Features / Notes |
 |--------------|---------|----------------|------------------|
