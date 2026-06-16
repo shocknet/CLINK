@@ -65,6 +65,7 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 | [Stacker.News](https://stacker.news) | Message Board | Offers, Debits | Attach a wallet via CLINK to send and receive zaps. |
 | [clinkme.dev](https://clinkme.dev) | Web Demo | Offers, Debits | Demo of a static website using CLINK Offers. |
 | [bxrd.app](https://bxrd.app) | Nostr Client | Offers, Debits | A graph-based Nostr Client with Debit integration for Zaps. |
+| [Amtheyst](https://amethyst.social/) | Nostr Client | Offers, Debits | A privacy-focused Nostr client for Android. |
 | [TakeMySats](https://takemysats.com) | Merchant Platform | Offers | Accept sats as payment for your products. |
 | *Your project here* | - | - | PR welcome! |
 
