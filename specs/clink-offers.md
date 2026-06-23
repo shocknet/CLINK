@@ -156,7 +156,7 @@ Sent by the receiving service back to the payer.
         ["e", "<request_event_id>"],
         ["clink_version", "1"]
       ],
-      "content_onchain": "onchain_pubkey",
+      "content_onchain": "<onchain_pubkey>",
       "content": "<NIP-44 encrypted {\"bolt11\":\"<BOLT11_invoice_string>\"}>",
       "sig": "<signature>"
     }
