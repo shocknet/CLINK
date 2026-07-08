@@ -67,6 +67,8 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 | [bxrd.app](https://bxrd.app) | Nostr Client | Offers, Debits | A graph-based Nostr Client with Debit integration for Zaps. |
 | [Amtheyst](https://amethyst.social/) | Nostr Client | Offers, Debits | A privacy-focused Nostr client for Android. |
 | [TakeMySats](https://takemysats.com) | Merchant Platform | Offers | Accept sats as payment for your products. |
+| [Woo-CLINK](https://github.com/WoompaLoompa/woo-clink) | E-commerce Plugin | Offers, Debits | Bitcoin Lightning payment gateway for WooCommerce via CLINK. |
+| [Electrum CLINK](https://github.com/BareBits/electrum_clink) | Plugin | Offers | Electrum plugin for receiving Lightning payments via CLINK noffers. |
 | *Your project here* | - | - | PR welcome! |
 
 ## Contributing
