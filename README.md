@@ -44,6 +44,7 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 - [CLINK Offers](specs/clink-offers.md): Static payment codes (`noffer1...`) analogous to LNURL-Pay but entirely Nostr-native. Enables invoice generation via Nostr direct messages without a publicly accessible HTTPS endpoint. Services like Lightning.Pub can trigger webhooks on offer events for easy integration while maintaining self-custody.
 - [CLINK Debits](specs/clink-debits.md): Static authorization pointers (`ndebit1...`) for direct, secure payment requests between parties via key-based identity and event-based authorization flows.
 - [CLINK Manage](specs/clink-manage.md): Delegated management (`nmanage1...`), e.g., external apps managing offers for a user.
+- [CLINK Enroll](specs/clink-enroll.md): Bootstrap an account on a node service for a Nostr key and receive default `noffer` / `ndebit` / `nmanage` pointers (kind `21004`). Direct-use only — does not mint third-party grants.
 
 ## Event Kinds
 
@@ -52,16 +53,18 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 | 21001  | Offer Request/Response     | [CLINK Offers](specs/clink-offers.md)    |
 | 21002  | Debit Request/Response     | [CLINK Debits](specs/clink-debits.md)    |
 | 21003  | Management Delegation      | [CLINK Manage](specs/clink-manage.md)    |
+| 21004  | Enroll / account bootstrap | [CLINK Enroll](specs/clink-enroll.md)    |
 
 ## Ecosystem
 
 | Project      | Type    | Supports        | Features / Notes |
 |--------------|---------|----------------|------------------|
-| [Lightning.Pub](https://lightning.pub) | Server  | Offers, Debits | Reference server for wallets. |
+| [Lightning.Pub](https://lightning.pub) | Server  | Offers, Debits, Manage, Enroll | Reference server for wallets. |
 | [ShockWallet](https://shockwallet.app) | Wallet  | Offers, Debits | Pay offers and manage your offers and requests via Lightning.Pub. |
 | [Zeus Wallet](https://zeusln.com) | Wallet  | Offers | Pay offers, ZEUS Pay users get an offer by default. |
 | [Bridgelet](https://github.com/shocknet/bridgelet) | Bridge  | Offers         | Simple NIP-05, LNURL and Lightning Address bridge for your custom domain, uses Offers to fetch invoices from your node. |
-| [CLINK SDK](https://www.npmjs.com/package/@shocknet/clink-sdk) | SDK     | Offers, Debits | JS/TS library for CLINK integration. |
+| [CLINK SDK](https://www.npmjs.com/package/@shocknet/clink-sdk) | SDK     | Offers, Debits, Manage | JS/TS library for CLINK integration. |
+| [clink-go](https://github.com/shocknet/clink-go) | SDK + CLI | Offers, Debits, Manage, Enroll | Go SDK and `clinkctl` CLI. |
 | [Stacker.News](https://stacker.news) | Message Board | Offers, Debits | Attach a wallet via CLINK to send and receive zaps. |
 | [clinkme.dev](https://clinkme.dev) | Web Demo | Offers, Debits | Demo of a static website using CLINK Offers. |
 | [bxrd.app](https://bxrd.app) | Nostr Client | Offers, Debits | A graph-based Nostr Client with Debit integration for Zaps. |
