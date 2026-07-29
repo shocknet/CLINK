@@ -71,7 +71,7 @@ These intervals are recommendations; deployments MAY tune locally but SHOULD sta
 
 ## Content schema
 
-All fields except `clink_version` are optional. Unknown fields MUST be ignored by clients.
+`clink_version` is required; all other fields are optional. Unknown fields MUST be ignored by clients.
 
 ```json
 {
@@ -96,8 +96,8 @@ All fields except `clink_version` are optional. Unknown fields MUST be ignored b
 
 | Field | Type | Requirement | Description |
 |-------|------|-------------|-------------|
-| `clink_version` | string | RECOMMENDED | CLINK beacon schema version. Implementations SHOULD use `"1"`. |
-| `name` | string | RECOMMENDED when publishing | Display name for the node service. |
+| `clink_version` | string | required | `"1"` |
+| `name` | string | optional | Display name for the node service. |
 | `avatarUrl` | string | optional | HTTPS URL for an avatar image. |
 | `website` | string | optional | Service website URL. |
 | `nip05` | string | optional | NIP-05 identifier for the service (verification is out of band). |
@@ -215,8 +215,7 @@ Clients SHOULD fetch or subscribe to both `clink-node-operator` and `clink-node-
 
 Services MAY publish a CLINK beacon. If they publish:
 
-- The event MUST match kind `30078`, author pubkey, and `d` tag `clink-node`.
-- `clink_version` SHOULD be `"1"`.
+- The event MUST match kind `30078`, author pubkey, `d` tag `clink-node`, and `content` with `clink_version: "1"`.
 - If `enroll_difficulty` is present, it MUST **equal** the required PoW difficulty enforced on kind `21004` for new enrolls (same value as `required_difficulty` when code is `4`). Services MUST NOT publish a lower or higher value than they enforce.
 - If `supported_kinds` is present, listed kinds MUST be actually supported.
 - If `fees` is present, values MUST reflect current service fee policy.
