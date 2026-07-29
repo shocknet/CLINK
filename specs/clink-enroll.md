@@ -4,7 +4,9 @@
 
 **CLINK Enroll** binds a Nostr key to an account (pointer) on a node service and returns that account’s default static CLINK pointers (`noffer1…`, `ndebit1…`, `nmanage1…`).
 
-It is the bootstrap step for headless clients, CLIs, and agents that act **as** the user (direct-use principal). It does **not** grant third parties spend or manage rights.
+It is how headless clients, CLIs, and agents that act **as** the user (direct-use principal) send an **Enroll request** to provision an account on a node. It does **not** grant third parties spend or manage rights.
+
+**Terminology:** An **Enroll request** is a kind `21004` event (same request/response pattern as Offers and Debits). Successful enrollment **provisions** an account for the requestor’s signing key. This is not wallet “bootstrap node”, Pub bootstrap liquidity, or application first-run initialization.
 
 ## Motivation
 
@@ -43,7 +45,7 @@ There is no separate “app” pubkey in the pointer model. Account identity on 
 - **Tags (request):**
   - `["p", "<service_pubkey>"]`
   - `["clink_version", "1"]`
-  - `["nonce", "<counter>", "<target_difficulty>"]` — [NIP-13](https://github.com/nostr-protocol/nips/blob/master/13.md) proof of work (see **Proof of work**)
+  - `["nonce", "<counter>", "<target_difficulty>"]` — [NIP-13](https://github.com/nostr-protocol/nips/blob/master/13.md) proof of work when the service requires it (see **Proof of work**)
 - **Tags (response):**
   - `["p", "<requestor_pubkey>"]`
   - `["e", "<request_event_id>"]`
@@ -52,49 +54,48 @@ There is no separate “app” pubkey in the pointer model. Account identity on 
 
 ## Proof of work
 
-Enroll creates (or resumes) an account. Unbounded free enroll is a DoS / spam vector. Request events MUST carry [NIP-13](https://github.com/nostr-protocol/nips/blob/master/13.md) proof of work so mass scripted enrollment is expensive, while a single enroll on a phone, browser tab, or low-resource agent stays interactive.
+Enroll creates an account for a new key, or returns the existing account if that key is already enrolled. Unbounded free enroll can be abused. Services **MAY** require [NIP-13](https://github.com/nostr-protocol/nips/blob/master/13.md) proof of work on the kind `21004` request to make mass scripted enrollment expensive, while a single enroll on a phone, browser tab, or low-resource agent stays interactive.
 
-### Rules
+This spec does **not** mandate that every deployment enforce PoW. Operators choose based on their threat model (open public node vs invite-only vs already rate-limited). When a service *does* require PoW, the rules below apply.
 
-1. The kind `21004` **request** event MUST include a NIP-13 `nonce` tag: `["nonce", "<counter>", "<target_difficulty>"]`.
+### When PoW is required
+
+1. The request event MUST include a NIP-13 `nonce` tag: `["nonce", "<counter>", "<target_difficulty>"]`.
 2. The event id MUST have at least `target_difficulty` leading zero bits.
-3. `target_difficulty` in the tag MUST be ≥ the service’s required difficulty (committed target — services MUST reject “lucky” high-difficulty ids that commit to a lower target).
-4. Services MUST reject requests that fail (1)–(3), preferably with error code `4` and `required_difficulty` so clients can remine once.
+3. `target_difficulty` in the tag MUST be ≥ the service’s required difficulty (committed target — reject “lucky” high-difficulty ids that commit to a lower target).
+4. If PoW is insufficient, the service SHOULD respond with error code `4` and `required_difficulty` so the client can remine once without guessing.
 
 ### Recommended difficulty
 
 | Setting | Bits | Intent |
 |---------|------|--------|
-| **Minimum allowed** | 16 | Floor for public enroll (~65k hashes expected) |
-| **Recommended default** | **18** | Deterrent for naive scripts; typically well under ~1s on a mid-range phone / browser WASM / small VPS agent |
-| **Stronger public** | 20 | ~1M hashes expected; still usually a few seconds on a phone, not “forever” |
-| **Avoid by default** | ≥ 22 | Fine for invite-gated or desktop-only services; too slow for shitty phones / casual web tabs |
+| **Recommended** | **18** | Deters scripts; typically well under ~1s on a mid-range phone / browser tab / small agent harness |
+| **Stronger** | 20 | ~1M hashes; usually a few seconds on a phone |
+| **Heavy** | ≥ 22 | Avoid for open public enroll aimed at low-power clients |
 
 Expected work scales as `2^bits` SHA-256 event-id trials. One extra bit ≈ 2× wall time.
 
-Reference servers SHOULD default to **18** and MAY raise toward **20** under load. They MUST NOT require ≥ 22 for open public enroll unless they document that low-power clients are unsupported or offer an invite / lower-difficulty path.
+### Discover difficulty before mining
+
+Blindly hashing at 18 and then discovering the service wants 20 wastes a full mine on weak devices.
+
+**Beacon fast-path (optional):** see [CLINK Beacon](clink-beacon.md). A fresh kind `30078` beacon with `enroll_difficulty` lets clients skip the probe before mining.
+
+**Portable discovery (normative):** clients learn difficulty by **probing** — send Enroll with no PoW (or difficulty `0`). If the service requires PoW, it responds with code `4` and `required_difficulty`; the client mines once at that value and retries. Every CLINK Enroll implementation MUST support this path. Portable clients MUST still probe when beacon is missing, stale, or not implemented.
+
+If the probe is ignored or the service does not require PoW, the client MAY enroll with no PoW or with the recommended **18** bits as a local default. On code `4`, mine at `required_difficulty` and retry **once**.
+
+Services that require PoW SHOULD return code `4` + `required_difficulty` on insufficient work so the probe path works.
+
+Services that publish a CLINK beacon with `enroll_difficulty` MUST keep it in sync with what they enforce on kind `21004` (see [CLINK Beacon](clink-beacon.md)).
 
 ### Existing accounts
 
-If the requestor pubkey already owns an account on the service, the service MAY:
-
-- accept the same PoW requirement, or
-- accept a lower difficulty (including `0`) for idempotent “return my pointers” re-enroll
-
-New account creation MUST still meet the full required difficulty.
-
-### Advertising difficulty
-
-Services SHOULD advertise `required_difficulty` so clients mine once:
-
-- in error responses when PoW is insufficient (see below), and/or
-- out of band (e.g. service kind `0` / documentation)
-
-Clients SHOULD mine at the advertised value (or the recommended default **18** if unknown), and on code `4` remine at `required_difficulty`.
+If the requestor pubkey already owns an account, a service that normally requires PoW MAY accept lower difficulty (including none) for an idempotent “return my pointers”. New account creation, when PoW is enabled, SHOULD still meet the full requirement.
 
 ## Request
 
-Empty object or optional fields:
+Kind `21004` **Enroll request** event. Empty object or optional fields:
 
 ```json
 {}
@@ -172,12 +173,13 @@ Marketplace / agent keys that are **not** the account owner still require normal
 nprofile (service) + user key
         │
         ▼
- mine NIP-13 PoW (default 18 bits) on kind 21004
+ learn difficulty:
+   optional: kind 30078 beacon → enroll_difficulty (see CLINK Beacon)
+   portable: Enroll with 0 PoW → code 4 + required_difficulty
         │
         ▼
-   kind 21004 Enroll
+ mine if required, then kind 21004 Enroll
         │
-        ├─ code 4 → remine at required_difficulty → retry
         ▼
  noffer / ndebit / nmanage
         │
@@ -188,8 +190,8 @@ nprofile (service) + user key
 
 ## Security considerations
 
-- Enroll proves control of a key and creates (or resumes) a custodial-or-self-hosted account on the service; services SHOULD rate-limit **and** require NIP-13 PoW for new accounts. PoW alone is not enough under a well-funded attacker — combine with rate limits / invites.
-- Recommended **18-bit** PoW aims for “annoying to spray thousands of accounts, fine for one human or agent on a phone.” Do not push public defaults into “wait forever on a weak device” territory (≥ 22).
+- Enroll proves control of a key and creates an account on the service (or returns pointers for an account that key already has). Services SHOULD rate-limit new enrolls and MAY require PoW and/or invites.
+- When PoW is used, ~**18 bits** is a sensible default tradeoff. Clients SHOULD probe (code `4`) before mining so they do not double-hash on a phone.
 - Returned `ndebit` is powerful for the **owner key** under owner policy; clients MUST treat the secret key as a full account credential.
 - Do not overload Enroll with grant minting — that recreates ambient authority and breaks Manage’s delegation model.
 
