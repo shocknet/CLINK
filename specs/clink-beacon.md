@@ -32,6 +32,14 @@ Beacon uses [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) *
 | **Tags** | Required: `["d", "clink-node"]`, `["clink_version", "1"]`. Optional: `["operator", "<operator_pubkey_hex>"]`. |
 | **Content** | UTF-8 JSON object (schema below) |
 
+### Protocol Versioning
+
+CLINK events utilize a mandatory `["clink_version", "1"]` tag. This ensures:
+1. **Disambiguation:** Explicitly identifies events belonging to the CLINK protocol, preventing conflicts if other NIPs use the same event kind (`30078`).
+2. **Version Compatibility:** Allows clients and services to verify they are using compatible versions of the CLINK protocol specification. Future versions may increment the version number (e.g., `"2"`).
+
+Implementations MUST include this tag in beacon, operator attestation, and revocation events.
+
 **Subscription filter (typical):**
 
 ```json
@@ -207,7 +215,7 @@ See [CLINK Enroll](clink-enroll.md) for PoW rules, probe semantics, and pointer 
 - `enroll_difficulty` fast-path is safe only when the beacon is fresh and from the expected author pubkey; otherwise probe.
 - Rate of beacon publication is an operational choice; very sparse beacons weaken onlineness signals.
 
-## Reference implementation
+## Reference Implementations
 
 - Spec repo: this document
 - **SDK:** [CLINK SDK](https://github.com/shocknet/ClinkSDK) ([`@shocknet/clink-sdk`](https://www.npmjs.com/package/@shocknet/clink-sdk) on npm)

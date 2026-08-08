@@ -52,6 +52,14 @@ There is no separate account pointer in an Enroll request: the service pubkey is
   - `["clink_version", "1"]`
 - **Content:** NIP-44 encrypted JSON (same pattern as Offers / Debits / Manage)
 
+### Protocol Versioning
+
+CLINK events utilize a mandatory `["clink_version", "1"]` tag. This ensures:
+1. **Disambiguation:** Explicitly identifies events belonging to the CLINK protocol, preventing conflicts if other NIPs use the same event kind (`21004`).
+2. **Version Compatibility:** Allows clients and services to verify they are using compatible versions of the CLINK protocol specification. Future versions may increment the version number (e.g., `"2"`).
+
+Implementations MUST include this tag in both request and response events and SHOULD reject events lacking this tag or having an unsupported version number.
+
 ## Proof of work
 
 Enroll creates an account for a new key, or returns the existing account if that key is already enrolled. Unbounded free enroll can be abused. Services **MAY** require [NIP-13](https://github.com/nostr-protocol/nips/blob/master/13.md) proof of work on the kind `21004` request to make mass scripted enrollment expensive, while a single enroll on a phone, browser tab, or low-resource agent stays interactive.
@@ -81,7 +89,7 @@ Blindly hashing at 18 and then discovering the service wants 20 wastes a full mi
 
 **Beacon fast-path (optional):** see [CLINK Beacon](clink-beacon.md). A fresh kind `30078` beacon with `enroll_difficulty` lets clients skip the probe before mining.
 
-**Portable discovery (normative):** clients learn difficulty by **probing** — send Enroll with no PoW (or difficulty `0`). If the service requires PoW, it responds with code `5` and `required_difficulty`; the client mines once at that value and retries. Every CLINK Enroll implementation MUST support this path. Portable clients MUST still probe when beacon is missing, stale, or not implemented.
+**Portable discovery (normative):** clients learn difficulty by **probing** — send an Enroll request with no `nonce` tag (or `target_difficulty` `0`). If the service requires PoW, it SHOULD respond with code `5` and `required_difficulty`; the client mines once at that value and retries. Every CLINK Enroll implementation MUST support this path. Portable clients MUST still probe when beacon is missing, stale, or not implemented.
 
 If the probe receives no response, the client MAY retry Enroll with the recommended **18** bits as a local default. If the service does not require PoW, the probe itself is the Enroll request and a successful response completes enrollment. On code `5`, mine at `required_difficulty` and retry **once**.
 
@@ -137,7 +145,7 @@ Error responses use the GFY envelope (`"res": "GFY"`), consistent with other CLI
 {
   "res": "GFY",
   "code": 5,
-  "error": "insufficient proof of work",
+  "error": "Insufficient proof of work",
   "required_difficulty": 18
 }
 ```
@@ -146,14 +154,14 @@ Error responses use the GFY envelope (`"res": "GFY"`), consistent with other CLI
 
 Error codes (aligned with other CLINK specs):
 
-| Code | Meaning |
-|------|---------|
-| 1 | Denied / not allowed |
-| 2 | Temporary Failure / Service unavailable |
-| 3 | Expired Request |
-| 4 | Rate limited |
-| 5 | Insufficient NIP-13 proof of work (see `required_difficulty`) |
-| 6 | Invalid Request |
+| Code | Meaning | Expected Extra Fields |
+|------|---------|-----------------------|
+| 1 | Denied / not allowed | |
+| 2 | Temporary Failure / Service unavailable | |
+| 3 | Expired Request | `delta`: `{"max_delta_ms": 30000, "actual_delta_ms": <calculated_delta>}` |
+| 4 | Rate limited | `retry_after`: `<unix_timestamp>` (optional) |
+| 5 | Insufficient NIP-13 proof of work | `required_difficulty`: `<integer>` |
+| 6 | Invalid Request | |
 
 ## Owner policy (normative for reference servers)
 
@@ -192,8 +200,8 @@ nprofile (service) + user key
 - Returned `ndebit` is powerful for the **owner key** under owner policy; clients MUST treat the secret key as a full account credential.
 - Do not overload Enroll with grant minting — that recreates ambient authority and breaks Manage’s delegation model.
 
-## Reference implementation
+## Reference Implementations
 
 - Spec repo: this document
-- Go CLI/SDK: [clink-go](https://github.com/shocknet/clink-go) (`clinkctl enroll`)
 - Reference server: [Lightning.Pub](https://github.com/shocknet/Lightning.Pub)
+- **SDK:** [CLINK SDK](https://github.com/shocknet/ClinkSDK) ([`@shocknet/clink-sdk`](https://www.npmjs.com/package/@shocknet/clink-sdk) on npm)
