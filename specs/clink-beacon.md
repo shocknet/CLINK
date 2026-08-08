@@ -88,7 +88,7 @@ All fields are optional. Unknown fields MUST be ignored by clients.
 | `fees` | object | optional | Service fee disclosure for pay flows. |
 | `fees.serviceFeeFloor` | integer | optional | Minimum service fee in **satoshis**. |
 | `fees.serviceFeeBps` | integer | optional | Service fee in basis points (100 = 1%). |
-| `enroll_difficulty` | integer | optional | NIP-13 bits the service requires for **new** Enroll when PoW is enabled. MUST **equal** the enforced required difficulty (same value as `required_difficulty` on Enroll code `4`). Not a minimum or maximum — an accurate advertisement. |
+| `enroll_difficulty` | integer | optional | NIP-13 bits the service requires for **new** Enroll when PoW is enabled. MUST **equal** the enforced required difficulty (same value as `required_difficulty` on Enroll code `5`). Not a minimum or maximum — an accurate advertisement. |
 | `supported_kinds` | integer[] | optional | CLINK event kinds this service supports (e.g. `21001` Offers, `21002` Debits, `21003` Manage, `21004` Enroll). |
 
 Monetary amounts use **satoshis**, consistent with other CLINK specs.
@@ -156,7 +156,7 @@ Clients SHOULD fetch or subscribe to both `clink-node-operator` and `clink-node-
 Services MAY publish a CLINK beacon. If they publish:
 
 - The event MUST be kind `30078`, author service pubkey, with tags `["d", "clink-node"]` and `["clink_version", "1"]`.
-- If `enroll_difficulty` is present, it MUST **equal** the required PoW difficulty enforced on kind `21004` for new enrolls (same value as `required_difficulty` when code is `4`). Services MUST NOT publish a lower or higher value than they enforce.
+- If `enroll_difficulty` is present, it MUST **equal** the required PoW difficulty enforced on kind `21004` for new enrolls (same value as `required_difficulty` when code is `5`). Services MUST NOT publish a lower or higher value than they enforce.
 - If `supported_kinds` is present, listed kinds MUST be actually supported.
 - If `fees` is present, values MUST reflect current service fee policy.
 - If an `operator` tag is present, verified display of operator identity requires matching **operator attestation** from that pubkey.
@@ -170,12 +170,12 @@ Clients MAY subscribe to CLINK beacons when they know service pubkey and relay.
 When using a beacon:
 
 1. **Onlineness** — use event `created_at` (and subscription freshness) per **Client staleness** above.
-2. **Enroll difficulty** — if `enroll_difficulty` is present and the beacon is not stale, clients MAY mine at that value before Enroll instead of probing. The Enroll request still MUST meet the service’s required difficulty (mining **at or above** required satisfies NIP-13; see [CLINK Enroll](clink-enroll.md)). On code `4`, mine at `required_difficulty` and retry once. If absent, stale, or untrusted, clients MUST use the portable Enroll probe path.
+2. **Enroll difficulty** — if `enroll_difficulty` is present and the beacon is not stale, clients MAY mine at that value before Enroll instead of probing. The Enroll request still MUST meet the service’s required difficulty (mining **at or above** required satisfies NIP-13; see [CLINK Enroll](clink-enroll.md)). On code `5`, mine at `required_difficulty` and retry once. If absent, stale, or untrusted, clients MUST use the portable Enroll probe path.
 3. **Persona / fees** — clients MAY display `name`, `avatarUrl`, etc., and show `fees` before payment; display is advisory unless cross-checked in a pay response.
 4. **Relays** — clients MAY update preferred relay hints from `relays` when reconnecting or building filters.
 5. **Operator** — clients MUST follow **Discovery by operator** for verified linkage. Unverified `#operator` beacon matches alone MUST NOT show trusted “operated by” UI.
 
-Clients MUST support Enroll probe (code `4` + `required_difficulty`) regardless of beacon support.
+Clients MUST support Enroll probe (code `5` + `required_difficulty`) regardless of beacon support.
 
 ## Relationship to Enroll
 
@@ -188,7 +188,7 @@ nprofile (service pubkey + relay)
    • fresh + enroll_difficulty → MAY skip probe and mine
         │
         ▼
- portable fallback: Enroll probe (kind 21004, 0 PoW → code 4)
+ portable fallback: Enroll probe (kind 21004, 0 PoW → code 5)
         │
         ▼
  kind 21004 Enroll → noffer / ndebit / nmanage

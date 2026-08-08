@@ -326,6 +326,7 @@ Implementations MUST include this tag in both request and response events and SH
 - Validate incoming requests.
 - Send kind `21002` responses (`ok` or `GFY`).
 - Process Lightning payments securely for approved direct payment requests.
+- Allow direct operations signed by the account owner key without a prior third-party authorization grant (see **Owner policy** in [CLINK Enroll](clink-enroll.md)).
 
 **SHOULD:**
 - Provide a UI for users to manage permissions, budgets, and rules.

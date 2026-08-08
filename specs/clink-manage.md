@@ -196,6 +196,7 @@ When a request cannot be fulfilled, the wallet service MAY respond with a GFY er
 - App sends a Kind 21003 request to the wallet server.
 - Wallet server prompts user for approval (or applies rules).
 - On approval, the server creates/updates/deletes the offer and responds.
+- Self-use requests signed by the account owner key do not require a prior third-party delegation grant (see **Owner policy** in [CLINK Enroll](clink-enroll.md)).
 
 #### Security & Rules
 - All requests are signed and auditable.

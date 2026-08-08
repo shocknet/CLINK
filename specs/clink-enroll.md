@@ -63,7 +63,7 @@ This spec does **not** mandate that every deployment enforce PoW. Operators choo
 1. The request event MUST include a NIP-13 `nonce` tag: `["nonce", "<counter>", "<target_difficulty>"]`.
 2. The event id MUST have at least `target_difficulty` leading zero bits.
 3. `target_difficulty` in the tag MUST be ≥ the service’s required difficulty (committed target — reject “lucky” high-difficulty ids that commit to a lower target).
-4. If PoW is insufficient, the service SHOULD respond with error code `4` and `required_difficulty` so the client can remine once without guessing.
+4. If PoW is insufficient, the service SHOULD respond with error code `5` and `required_difficulty` so the client can remine once without guessing.
 
 ### Recommended difficulty
 
@@ -81,11 +81,11 @@ Blindly hashing at 18 and then discovering the service wants 20 wastes a full mi
 
 **Beacon fast-path (optional):** see [CLINK Beacon](clink-beacon.md). A fresh kind `30078` beacon with `enroll_difficulty` lets clients skip the probe before mining.
 
-**Portable discovery (normative):** clients learn difficulty by **probing** — send Enroll with no PoW (or difficulty `0`). If the service requires PoW, it responds with code `4` and `required_difficulty`; the client mines once at that value and retries. Every CLINK Enroll implementation MUST support this path. Portable clients MUST still probe when beacon is missing, stale, or not implemented.
+**Portable discovery (normative):** clients learn difficulty by **probing** — send Enroll with no PoW (or difficulty `0`). If the service requires PoW, it responds with code `5` and `required_difficulty`; the client mines once at that value and retries. Every CLINK Enroll implementation MUST support this path. Portable clients MUST still probe when beacon is missing, stale, or not implemented.
 
-If the probe is ignored or the service does not require PoW, the client MAY enroll with no PoW or with the recommended **18** bits as a local default. On code `4`, mine at `required_difficulty` and retry **once**.
+If the probe is ignored or the service does not require PoW, the client MAY enroll with no PoW or with the recommended **18** bits as a local default. On code `5`, mine at `required_difficulty` and retry **once**.
 
-Services that require PoW SHOULD return code `4` + `required_difficulty` on insufficient work so the probe path works.
+Services that require PoW SHOULD return code `5` + `required_difficulty` on insufficient work so the probe path works.
 
 Services that publish a CLINK beacon with `enroll_difficulty` MUST keep it in sync with what they enforce on kind `21004` (see [CLINK Beacon](clink-beacon.md)).
 
@@ -115,7 +115,7 @@ Services MAY ignore `preferred_pointer`. Services MUST associate the resulting a
 
 ```json
 {
-  "pointer": "<account_pointer>",
+  "res": "ok",
   "noffer": "noffer1...",
   "ndebit": "ndebit1...",
   "nmanage": "nmanage1..."
@@ -124,7 +124,7 @@ Services MAY ignore `preferred_pointer`. Services MUST associate the resulting a
 
 | Field | Requirement |
 |-------|-------------|
-| `pointer` | Opaque account id used as TLV `2` in the returned bech32s |
+| `res` | `"ok"` on success |
 | `noffer` | Default spontaneous (or service-default) offer for this account |
 | `ndebit` | Static debit pointer for this account |
 | `nmanage` | Manage pointer for this account |
@@ -135,28 +135,33 @@ Returned bech32s MUST use:
 - TLV `1` = a relay the service listens on (typically the relay used for the request)
 - TLV `2` = `pointer` (where the format includes a pointer)
 
-Idempotency: repeating Enroll with the same key MUST return the same `pointer` and equivalent pointers (bech32 strings MAY differ only if relay preference changes).
+Idempotency: repeating Enroll with the same key MUST return equivalent pointers (bech32 strings MAY differ only if relay preference changes).
 
 ## Response (error)
 
+Error responses use the GFY envelope (`"res": "GFY"`), consistent with other CLINK interactive response protocols.
+
 ```json
 {
-  "code": 4,
+  "res": "GFY",
+  "code": 5,
   "error": "insufficient proof of work",
   "required_difficulty": 18
 }
 ```
 
-`required_difficulty` MUST be present when `code` is `4`.
+`required_difficulty` MUST be present when `code` is `5`.
 
-Suggested codes (align with other CLINK specs where practical):
+Error codes (aligned with other CLINK specs):
 
 | Code | Meaning |
 |------|---------|
 | 1 | Denied / not allowed |
-| 2 | Rate limited |
-| 3 | Service unavailable |
-| 4 | Insufficient NIP-13 proof of work (see `required_difficulty`) |
+| 2 | Temporary Failure / Service unavailable |
+| 3 | Expired Request |
+| 4 | Rate limited |
+| 5 | Insufficient NIP-13 proof of work (see `required_difficulty`) |
+| 6 | Invalid Request |
 
 ## Owner policy (normative for reference servers)
 
@@ -173,9 +178,9 @@ Marketplace / agent keys that are **not** the account owner still require normal
 nprofile (service) + user key
         │
         ▼
- learn difficulty:
+  learn difficulty:
    optional: kind 30078 beacon → enroll_difficulty (see CLINK Beacon)
-   portable: Enroll with 0 PoW → code 4 + required_difficulty
+   portable: Enroll with 0 PoW → code 5 + required_difficulty
         │
         ▼
  mine if required, then kind 21004 Enroll
@@ -191,7 +196,7 @@ nprofile (service) + user key
 ## Security considerations
 
 - Enroll proves control of a key and creates an account on the service (or returns pointers for an account that key already has). Services SHOULD rate-limit new enrolls and MAY require PoW and/or invites.
-- When PoW is used, ~**18 bits** is a sensible default tradeoff. Clients SHOULD probe (code `4`) before mining so they do not double-hash on a phone.
+- When PoW is used, ~**18 bits** is a sensible default tradeoff. Clients SHOULD probe (code `5`) before mining so they do not double-hash on a phone.
 - Returned `ndebit` is powerful for the **owner key** under owner policy; clients MUST treat the secret key as a full account credential.
 - Do not overload Enroll with grant minting — that recreates ambient authority and breaks Manage’s delegation model.
 
