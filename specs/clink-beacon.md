@@ -180,12 +180,10 @@ Clients MAY subscribe to CLINK beacons when they know service pubkey and relay.
 When using a beacon:
 
 1. **Onlineness** — use event `created_at` (and subscription freshness) per **Client staleness** above.
-2. **Enroll difficulty** — if `enroll_difficulty` is present and the beacon is not stale, clients MAY mine at that value before Enroll instead of probing. The Enroll request still MUST meet the service’s required difficulty (mining **at or above** required satisfies NIP-13; see [CLINK Enroll](clink-enroll.md)). On code `5`, mine at `required_difficulty` and retry once. If absent, stale, or untrusted, clients MUST use the portable Enroll probe path.
+2. **Enroll difficulty** — if `enroll_difficulty` is present and the beacon is valid per **Client staleness** above, clients MAY use it as the Enroll PoW fast-path (see [CLINK Enroll](clink-enroll.md)). Otherwise fall back to the portable Enroll probe path.
 3. **Persona / fees** — clients MAY display `name`, `avatarUrl`, etc., and show `fees` before payment; display is advisory unless cross-checked in a pay response.
 4. **Relays** — clients MAY update preferred relay hints from `relays` when reconnecting or building filters.
 5. **Operator** — clients MUST follow **Discovery by operator** for verified linkage. Unverified `#operator` beacon matches alone MUST NOT show trusted “operated by” UI.
-
-Clients MUST support Enroll probe (code `5` + `required_difficulty`) regardless of beacon support.
 
 ## Relationship to Enroll
 
@@ -206,7 +204,7 @@ nprofile (service pubkey + relay)
 
 Beacon does not create accounts or return pointers. It only advertises parameters and liveness before Enroll.
 
-See [CLINK Enroll](clink-enroll.md) for PoW rules, probe semantics, and pointer delivery.
+See [CLINK Enroll](clink-enroll.md) for PoW rules, probe semantics, and resource pointer delivery.
 
 ## Security considerations
 
