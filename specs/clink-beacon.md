@@ -54,6 +54,8 @@ Services that publish beacons SHOULD republish at least every **60 seconds** whi
 
 Clients SHOULD treat a beacon as **stale** when no event with `created_at` within the last **180 seconds** has been seen for that service pubkey and `d` tag. Stale beacons MUST NOT be used for `enroll_difficulty` fast-path; clients fall back to Enroll probe or user warning.
 
+Clients SHOULD treat a beacon whose `created_at` is more than **30 seconds in the future** as invalid for freshness and protocol-parameter decisions.
+
 These intervals are recommendations; deployments MAY tune locally but SHOULD stay within similar bounds for interoperable UX.
 
 ## Content schema
@@ -84,7 +86,7 @@ All fields are optional. Unknown fields MUST be ignored by clients.
 | `avatarUrl` | string | optional | HTTPS URL for an avatar image. |
 | `website` | string | optional | Service website URL. |
 | `description` | string | optional | Short description for UIs. |
-| `relays` | string[] | optional | Relay URL(s) where the service listens for CLINK traffic. First entry MAY be treated as preferred. |
+| `relays` | string[] | optional | Valid WebSocket relay URL(s) where the service listens for CLINK traffic. Production entries SHOULD use `wss:`. First entry MAY be treated as preferred. |
 | `fees` | object | optional | Service fee disclosure for pay flows. |
 | `fees.serviceFeeFloor` | integer | optional | Minimum service fee in **satoshis**. |
 | `fees.serviceFeeBps` | integer | optional | Service fee in basis points (100 = 1%). |
@@ -124,7 +126,7 @@ Service pubkeys are carried **only** in `service` tags (enables `#service` relay
 
 For operator `O` and service `S`, linkage is verified only when the service beacon authored by `S` includes `["operator", "O"]`, the current attestation authored by `O` includes `["service", "S"]`, and the current revocation state does not include `["service", "S"]`. If any condition is missing, or if `S` is revoked, clients MUST NOT present the service as “operated by” `O`. An attestation for `S` without a matching service-beacon claim is only an operator assertion, not verified beacon linkage.
 
-Clients MUST determine attestation and revocation from **current replaceable state** (latest event per `d` tag). Clients MUST NOT order these documents by `created_at` — timestamps are self-reported and not a reliable chain.
+Clients MUST determine attestation and revocation from the **current addressable event** for each coordinate according to NIP-01 replacement rules. Clients MUST NOT compare the attestation document’s `created_at` with the revocation document’s `created_at` to decide which document wins; membership in the current revocation document wins.
 
 ### Operator attestation revocation
 

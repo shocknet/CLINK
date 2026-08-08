@@ -2,7 +2,7 @@
 
 ## Overview
 
-**CLINK Enroll** binds a Nostr key to an account (pointer) on a node service and returns that account’s default static CLINK pointers (`noffer1…`, `ndebit1…`, `nmanage1…`).
+**CLINK Enroll** binds a Nostr key to an account on a node service and returns that account’s default static CLINK resource pointers (`noffer1…`, `ndebit1…`, `nmanage1…`).
 
 It is how headless clients, CLIs, and agents that act **as** the user (direct-use principal) send an **Enroll request** to provision an account on a node. It does **not** grant third parties spend or manage rights.
 
@@ -10,7 +10,7 @@ It is how headless clients, CLIs, and agents that act **as** the user (direct-us
 
 ## Motivation
 
-Offers, Debits, and Manage all require a service pubkey, relay, and account pointer. Without Enroll, clients must use proprietary wallet RPC (e.g. Lightning.Pub `GetUserInfo`) to create an account and learn those pointers.
+Offers, Debits, and Manage use a service pubkey, relay, and resource-specific identifiers. Without Enroll, clients must use proprietary wallet RPC (e.g. Lightning.Pub `GetUserInfo`) to create an account and learn the resulting resource pointers.
 
 Enroll makes account provisioning a portable CLINK protocol so a client can:
 
@@ -37,7 +37,7 @@ Input is the **node service** identity only:
 - Service pubkey (32-byte)
 - Relay URL(s) where the service listens
 
-There is no separate “app” pubkey in the pointer model. Account identity on the service is an opaque **pointer** (user id) chosen by the service.
+There is no separate account pointer in an Enroll request: the service pubkey is the request target. The useful resource-specific identifiers are returned inside the resulting `noffer`, `ndebit`, and `nmanage` strings.
 
 ## Nostr Events
 
@@ -83,7 +83,7 @@ Blindly hashing at 18 and then discovering the service wants 20 wastes a full mi
 
 **Portable discovery (normative):** clients learn difficulty by **probing** — send Enroll with no PoW (or difficulty `0`). If the service requires PoW, it responds with code `5` and `required_difficulty`; the client mines once at that value and retries. Every CLINK Enroll implementation MUST support this path. Portable clients MUST still probe when beacon is missing, stale, or not implemented.
 
-If the probe is ignored or the service does not require PoW, the client MAY enroll with no PoW or with the recommended **18** bits as a local default. On code `5`, mine at `required_difficulty` and retry **once**.
+If the probe receives no response, the client MAY retry Enroll with the recommended **18** bits as a local default. If the service does not require PoW, the probe itself is the Enroll request and a successful response completes enrollment. On code `5`, mine at `required_difficulty` and retry **once**.
 
 Services that require PoW SHOULD return code `5` + `required_difficulty` on insufficient work so the probe path works.
 
@@ -95,21 +95,13 @@ If the requestor pubkey already owns an account, a service that normally require
 
 ## Request
 
-Kind `21004` **Enroll request** event. Empty object or optional fields:
+Kind `21004` **Enroll request** event. Its payload is an empty object:
 
 ```json
 {}
 ```
 
-Optional:
-
-```json
-{
-  "preferred_pointer": "<hint>"
-}
-```
-
-Services MAY ignore `preferred_pointer`. Services MUST associate the resulting account with the **request event’s pubkey**.
+Services MUST associate the resulting account with the **request event’s pubkey**.
 
 ## Response (success)
 
@@ -129,11 +121,11 @@ Services MAY ignore `preferred_pointer`. Services MUST associate the resulting a
 | `ndebit` | Static debit pointer for this account |
 | `nmanage` | Manage pointer for this account |
 
-Returned bech32s MUST use:
+Each returned bech32 string MUST follow its respective Offers, Debits, or Manage specification. In particular, returned strings MUST use:
 
 - TLV `0` = **this service’s** pubkey
 - TLV `1` = a relay the service listens on (typically the relay used for the request)
-- TLV `2` = `pointer` (where the format includes a pointer)
+- TLV `2` = the resource-specific identifier defined by that format, where present
 
 Idempotency: repeating Enroll with the same key MUST return equivalent pointers (bech32 strings MAY differ only if relay preference changes).
 
@@ -165,7 +157,7 @@ Error codes (aligned with other CLINK specs):
 
 ## Owner policy (normative for reference servers)
 
-When the signer of a kind **21002** (Debit) or **21003** (Manage) request is the Nostr key that **owns** the account identified by the pointer (the same key that Enrolled):
+When the signer of a kind **21002** (Debit) or **21003** (Manage) request is the Nostr key that **owns** the account behind the resource pointer in that request (the same key that Enrolled):
 
 - The service MUST allow the operation without a prior third-party debit/manage authorization grant.
 - This does **not** authorize any other pubkey.
