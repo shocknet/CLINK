@@ -17,7 +17,7 @@ A periodic beacon on the same relay the service already uses gives clients:
 3. **Fee disclosure** — service fee floor and basis points before a pay flow
 4. **Enroll fast-path** — optional `enroll_difficulty` so clients can skip an Enroll probe when mining PoW (see [CLINK Enroll](clink-enroll.md))
 5. **Capability hints** — optional `supported_kinds` so clients know which CLINK kinds the node advertises
-6. **Operator linkage** — optional `operator` tag containing the operator’s social pubkey, so clients can discover or label a node by a known Nostr identity. **Requires operator attestation** before trusted display (see **Discovery by operator**).
+6. **Operator linkage** — optional `operator` tag for the operator’s social pubkey. Trusted “operated by” display requires attestation (see **Discovery by operator**).
 
 Beacon is **optional for servers** and **optional for clients** as an optimization. Portable behavior always remains available via Enroll probe and normal CLINK request/response flows. Beacon carries **service-level** hints only — not per-account pointers, balances, or wallet RPC (see [CLINK Enroll](clink-enroll.md)).
 
@@ -110,16 +110,14 @@ The **service pubkey** (beacon event author) is the CLINK backend identity. The 
 **Verification flow** (operator-first):
 
 1. Fetch current `clink-node-operator` from the operator pubkey → attested service pubkeys (`service` tags).
-2. Subtract any pubkeys on current `clink-node-operator-revoke`.
+2. Subtract any pubkeys on current `clink-node-operator-revoke` (if both list `S`, **revocation wins**).
 3. For each remaining `S`, fetch `clink-node` from author `S` and confirm tag `["operator", "<operator_pubkey_hex>"]`.
 
-Only then may a client show verified “operated by” UI. Starting from `#operator` on service beacons invites affinity scams because many spoofed nodes can claim the same famous `npub`.
-
-Operator linkage does **not** grant [Enroll](clink-enroll.md) owner policy on kind `21002` / `21003` for that key unless that key is also the enrolled account owner on the service.
+Only then may a client show verified “operated by” UI. Starting from `#operator` on service beacons invites affinity scams — spoofed nodes can claim any famous `npub`.
 
 ### Operator attestation
 
-A service beacon’s `operator` tag is a **one-way claim**. Anyone can tag a famous key. Clients need a **bidirectional proof**: the claimed operator key must also attest that it operates this service pubkey.
+A service beacon’s `operator` tag is a **one-way claim**. Anyone can tag a famous key. Clients need **bidirectional proof**: the claimed operator key must also attest this service pubkey.
 
 The operator publishes a separate replaceable event:
 
@@ -132,9 +130,7 @@ The operator publishes a separate replaceable event:
 
 Service pubkeys are carried **only** in `service` tags (enables `#service` relay filters). Clients MUST NOT duplicate them in `content`.
 
-For operator `O` and service `S`, linkage is verified only when the service beacon authored by `S` includes `["operator", "O"]`, the current attestation authored by `O` includes `["service", "S"]`, and the current revocation state does not include `["service", "S"]`. If any condition is missing, or if `S` is revoked, clients MUST NOT present the service as “operated by” `O`. An attestation for `S` without a matching service-beacon claim is only an operator assertion, not verified beacon linkage.
-
-Clients MUST determine attestation and revocation from the **current addressable event** for each coordinate according to NIP-01 replacement rules. Clients MUST NOT compare the attestation document’s `created_at` with the revocation document’s `created_at` to decide which document wins; membership in the current revocation document wins.
+Clients MUST use the **current** attestation and revocation events per NIP-01 replacement rules. Do **not** compare `created_at` across the two documents; membership in the current revocation document wins.
 
 ### Operator attestation revocation
 
@@ -157,21 +153,15 @@ An operator MAY revoke a service without editing the attestation list by publish
 }
 ```
 
-**Verification with revocation** (operator `O`, service `S`): fetch the **current** `clink-node-operator` and `clink-node-operator-revoke` replaceable events from `O`. Linkage is **verified** only if attestation includes `["service", "S"]` and revocation does **not**. If both include a `service` tag for `S`, **revocation wins**. To attest again after revoke, the operator MUST republish revocation without the `S` tag (and SHOULD keep attestation consistent).
-
-Clients SHOULD fetch or subscribe to both `clink-node-operator` and `clink-node-operator-revoke` when verifying operator linkage for display.
+To re-attest after revoke, the operator MUST republish revocation without the `S` tag (and SHOULD keep attestation consistent). Clients SHOULD subscribe to both documents when verifying operator linkage.
 
 ## Server requirements
 
 Services MAY publish a CLINK beacon. If they publish:
 
-- The event MUST be kind `30078`, author service pubkey, with tags `["d", "clink-node"]` and `["clink_version", "1"]`.
-- If `enroll_difficulty` is present, it MUST **equal** the required PoW difficulty enforced on kind `21004` for new enrolls (same value as `required_difficulty` when code is `5`). Services MUST NOT publish a lower or higher value than they enforce.
-- If `supported_kinds` is present, listed kinds MUST be actually supported.
-- If `fees` is present, values MUST reflect current service fee policy.
-- If an `operator` tag is present, verified display of operator identity requires matching **operator attestation** from that pubkey.
-
-Services MUST NOT rely on beacon alone for security decisions on kind `21004`; Enroll PoW validation remains on the Enroll request event.
+- The event MUST match the **Nostr event** table above (`30078`, service author, required tags).
+- Advertised `enroll_difficulty`, `supported_kinds`, and `fees` MUST match what the service actually enforces.
+- Services MUST NOT rely on beacon alone for security decisions on kind `21004`; Enroll PoW validation remains on the Enroll request event.
 
 ## Client requirements
 
@@ -185,33 +175,11 @@ When using a beacon:
 4. **Relays** — clients MAY update preferred relay hints from `relays` when reconnecting or building filters.
 5. **Operator** — clients MUST follow **Discovery by operator** for verified linkage. Unverified `#operator` beacon matches alone MUST NOT show trusted “operated by” UI.
 
-## Relationship to Enroll
-
-```
-nprofile (service pubkey + relay)
-        │
-        ▼
- optional: subscribe kind 30078, d=clink-node
-   • stale/missing → treat as unknown / offline warning
-   • fresh + enroll_difficulty → MAY skip probe and mine
-        │
-        ▼
- portable fallback: Enroll probe (kind 21004, 0 PoW → code 5)
-        │
-        ▼
- kind 21004 Enroll → noffer / ndebit / nmanage
-```
-
-Beacon does not create accounts or return pointers. It only advertises parameters and liveness before Enroll.
-
-See [CLINK Enroll](clink-enroll.md) for PoW rules, probe semantics, and resource pointer delivery.
-
 ## Security considerations
 
-- The beacon is a **signed** Nostr event from the service pubkey. The signature proves the service published this persona and hints — not that the service is trustworthy, that quoted `fees` apply to a specific invoice, or that any party is authorized to spend. Clients MUST NOT treat the beacon alone as proof of good behavior, invoice-level fee correctness, or spend authorization.
-- **Affinity scam:** a malicious service can tag any operator pubkey. Clients MUST use bidirectional **operator attestation** and check **revocation** before displaying “operated by”.
-- `enroll_difficulty` fast-path is safe only when the beacon is fresh and from the expected author pubkey; otherwise probe.
-- Rate of beacon publication is an operational choice; very sparse beacons weaken onlineness signals.
+- The beacon is a **signed** event from the service pubkey. That proves authorship of the persona/hints — not trustworthiness, invoice-level fee correctness, or spend authorization.
+- **Affinity scam:** a malicious service can tag any operator pubkey. Require bidirectional attestation and check revocation before “operated by” UI.
+- `enroll_difficulty` fast-path only when the beacon is valid per **Client staleness** and from the expected author; otherwise probe.
 
 ## Reference Implementations
 
