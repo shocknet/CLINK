@@ -74,6 +74,7 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 | [Vendure-CLINK](https://github.com/WoompaLoompa/vendure-clink) | E-commerce Plugin | Offers | Bitcoin Lightning payment plugin for Vendure via CLINK. |
 | [Medusa-CLINK](https://github.com/WoompaLoompa/medusa-clink) | E-commerce Plugin | Offers, Debits | Bitcoin Lightning payments and subscriptions for Medusa.js via CLINK. |
 | [Electrum CLINK](https://github.com/BareBits/electrum_clink) | Wallet Plugin | Offers | Electrum plugin for receiving Lightning payments via CLINK noffers. |
+| [LNbits-CLINK](https://github.com/WoompaLoompa/lnbits-clink) | LNbits Extension | Offers, Debits | Nostr-native Lightning for LNbits: offers, pay offers, subscriptions auto-renew and funding source via CLINK. |
 
 | *Your project here* | - | - | PR welcome! |
 
