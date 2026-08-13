@@ -79,6 +79,17 @@ Allows an app to create, update, and delete offers on the user's wallet server.
   }
   ```
   The wallet server is responsible for filtering the list to only include offers created by the requesting app. Future versions of this specification may introduce pagination and additional filtering capabilities.
+- **Offer Stats**
+  ```json
+  {
+    "resource": "offer",
+    "action": "stats",
+    "offer": {
+      "id": "<offer_id>"
+    }
+  }
+  ```
+  Returns aggregates for paid activity on this offer only (not account balance, not debit allowance). Authorization is the same as `get`: the requestor must be permitted to manage that offer. See success payload below.
 - **Delete Offer**
   ```json
   {
@@ -114,6 +125,22 @@ The offer object is managed by the wallet server. It includes a unique `id` (gen
   { "res": "ok", "resource": "offer", "details": [ { /* offer 1 */ }, { /* offer 2 */ } ] }
   ```
   The `details` field contains an array of full offer objects.
+
+- **Success (`stats`)**
+  ```json
+  {
+    "res": "ok",
+    "resource": "offer",
+    "details": {
+      "id": "<offer_id>",
+      "received_sats": 125000,
+      "paid_count": 42
+    }
+  }
+  ```
+  - `received_sats` (MUST): Sum of paid amounts (sats) received via this offer.
+  - `paid_count` (MUST): Number of paid invoices for this offer (allows clients to detect new payments without a history dump).
+  - Responses MUST NOT include per-invoice or payment-history arrays. Clients that need invoice history SHOULD use wallet-native interfaces outside CLINK Manage.
 
 - **Success (`delete`)**
   ```json
@@ -185,22 +212,41 @@ When a request cannot be fulfilled, the wallet service MAY respond with a GFY er
     ```
 
 #### Authorization & Ownership
-- The wallet server MUST track which app created each offer and MUST reject modification or deletion requests from other apps unless explicitly permitted by the user.
+- The wallet server MUST record which app pubkey created each offer.
+- A manage grant does **not** confer access to all of the user's offers. The authorized app MAY only `list`, `get`, `update`, `delete`, and `stats` offers **it created** (bound to that app pubkey). It MUST NOT see or mutate offers created by other apps or by the user outside this grant.
 - Offer IDs MUST be unique per wallet server. The wallet server is responsible for enforcing uniqueness.
 
 #### Updatable Fields
 - Only existing fields on an offer may be included in the `fields` object for an update. The server MUST NOT add new fields to an offer via this action.
 
 #### Authorization Flow
-- User shares their `nmanage1...` pointer with the app.
-- App sends a Kind 21003 request to the wallet server.
-- Wallet server prompts user for approval (or applies rules).
-- On approval, the server creates/updates/deletes the offer and responds.
+
+CLINK Manage has **no separate access-request action**. Unlike [CLINK Debits](clink-debits.md) (which use budget / unrestricted-access request payloads to establish spend permission), manage grants are established by the first resource action from an app.
+
+There is also no spend permission in manage: approval whitelists the app to create offers and to manage **only those offers it creates** — not to debit funds, and not to administer the user's other offers.
+
+1. User shares their `nmanage1...` pointer with the app.
+2. App sends a kind `21003` request with a normal resource action (commonly `create` or `list`).
+3. If the app pubkey is not yet authorized for that pointer, the wallet server prompts the user for approval (or applies rules) — this first action **is** the access request.
+4. On approval, the wallet server remembers the grant, performs the pending action, and responds.
+5. Later actions from the same authorized app proceed without re-prompting (until the user revokes or bans the grant), still scoped to offers created by that app.
+6. On denial / ban, the wallet server responds with GFY code `1`.
+
+Apps that only need to discover offers they already created can use `list` as the first action so approval is not tied to creating a new offer.
 
 #### Security & Rules
 - All requests are signed and auditable.
 - Wallet server can enforce rules (e.g., only allow certain apps, require user approval, limit offer creation rate, etc.).
-- Apps should not be able to modify or delete offers they did not create, unless explicitly permitted.
+- Apps MUST NOT be able to `get`, `update`, `delete`, or `stats` offers they did not create, unless the user explicitly permits otherwise (out of scope for the default grant model).
+
+#### Migration guidance (wallet / node)
+
+Creator-scoped grants mean a new marketplace app cannot manage offers another app created. That is intentional. When a user moves catalogs between apps, prefer **wallet-native reassignment** over widening `list` scope:
+
+- Wallet UIs SHOULD present offers grouped by managing app pubkey (the key bound at create time).
+- The user SHOULD be able to move selected offers (or a whole group) to another authorized manage app, rebinding management to that app’s pubkey.
+- After reassignment, the destination app’s `list` / `get` / `update` / `delete` / `stats` behave normally; the previous app loses access to those offers.
+- Do **not** use an unscoped `list` (“all user offers”) as the migration mechanism — that weakens isolation between apps. 
 
 ## Extensibility
 
@@ -226,6 +272,7 @@ Implementations MUST include this tag in both request and response events and SH
   - `delete`: This action is idempotent. A client sending multiple `delete` requests for the same `id` will result in the same final state (the offer not existing). If the offer `id` already does not exist, the server SHOULD return a success (`res: "ok"`) response.
   - `get`: This action is idempotent. If the offer `id` does not exist, return a GFY `6: Invalid Request` error.
   - `list`: This action is idempotent.
+  - `stats`: This action is idempotent. If the offer `id` does not exist, return a GFY `6: Invalid Request` error. Aggregates reflect paid activity at response time and MAY change as new payments settle.
 
 - **Request Expiration**: To prevent replay attacks, wallet servers MUST enforce a maximum time delta between the server's clock and the event's `created_at` timestamp. It is recommended to follow the pattern in CLINK Debits by returning a GFY `3: Expired Request` error for events outside this delta (e.g., > 30 seconds, a standard used by existing implementations).
 

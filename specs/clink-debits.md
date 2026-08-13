@@ -157,10 +157,20 @@ Sent to the node service identified by the key and pointer.
     }
     ```
 
+3.  **Info Request:**
+    ```json
+    {
+        "info": true,
+        "pointer": "<pointer_id>" // Optional, from ndebit TLV 2
+    }
+    ```
+    Queries the current debit relationship for this requestor (spend allowance / policy). See [Debit Info (`info: true`)](#debit-info-info-true) below. Like `bolt11` or `frequency`, this is a request-shape flag — not a manage-style `action`.
+
 **Notes on Request Payload:**
 - The node service MAY require `amount_sats` even for direct payments to process rules without decoding the invoice, but MUST verify the invoice amount upon payment.
 - For budget requests, omitting `frequency` implies a one-time budget.
-- A request with no `bolt11`, no `amount_sats`, and no `frequency` is implicitly a request for unrestricted access linked to the `pointer` (or the node service pubkey if `pointer` is absent), subject to node service policy and user approval.
+- A request with no `info`, no `bolt11`, no `amount_sats`, and no `frequency` is implicitly a request for unrestricted access linked to the `pointer` (or the node service pubkey if `pointer` is absent), subject to node service policy and user approval.
+- A request with `info: true` is an info query only. It MUST NOT be interpreted as a payment, budget, or unrestricted-access request. If `info` is present it MUST be `true`; other values are invalid (GFY code `6`).
 
 **Session Identifiers (`k1`):**
 
@@ -180,8 +190,9 @@ Sent by the node service upon completing or rejecting a debit request. The kind 
 1.  **ACK Payment Success:**
     Upon successful payment of a direct debit request, the node service sends a success response. The event itself, being signed by the node service and referencing the original request via an `e` tag, serves as a verifiable acknowledgment. The payload distinguishes between a standard Lightning payment and an internal settlement.
 
-    - For a **standard Lightning payment**, the NIP-44 encrypted `content` MUST be: `{"res":"ok","preimage":"<lightning_preimage>"}`.
-    - For an **internal settlement**, the NIP-44 encrypted `content` MUST be: `{"res":"ok"}`. The absence of a preimage indicates an internal transaction.
+    - For a **standard Lightning payment**, the NIP-44 encrypted `content` MUST include `"res":"ok"` and `"preimage":"<lightning_preimage>"`.
+    - For an **internal settlement**, the NIP-44 encrypted `content` MUST include `"res":"ok"` and MUST omit `preimage`. The absence of a preimage indicates an internal transaction.
+    - The node service SHOULD also include `policy` and, when applicable, `available_sats` as defined for info responses, as a refresh hint after spend. Clients that need a current allowance MUST still be able to poll via `info: true`; do not rely on payment responses alone.
 
     The overall event structure is the same for both cases, only the encrypted `content` differs:
     ```json
@@ -209,7 +220,13 @@ Sent by the node service upon completing or rejecting a debit request. The kind 
     }
     ```
 
-3.  **GFY (General Failure to Yield) Response:**
+3.  **ACK (Info Success):**
+    Response to an `info: true` request. See [Debit Info (`info: true`)](#debit-info-info-true). Example encrypted payload:
+    ```json
+    {"res":"ok","policy":"budget","available_sats":42123}
+    ```
+
+4.  **GFY (General Failure to Yield) Response:**
     ```json
     {
       // ... similar structure ...
@@ -217,6 +234,44 @@ Sent by the node service upon completing or rejecting a debit request. The kind 
       "sig": "<signature>"
     }
     ```
+
+## Debit Info (`info: true`)
+
+CLINK Debits are an authorization overlay, not a wallet account API. A debit connection does not necessarily have a balance of its own: the node service may require interactive (manual) approval per payment, grant a rolling auto-approval budget, or grant unrestricted auto-approval against underlying spendable funds.
+
+`info: true` asks: **how much may this requestor spend right now under this debit relationship?** It does **not** expose a full account ledger balance.
+
+### Response fields
+
+Success payloads MUST include `"res":"ok"` and `"policy"`.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `policy` | MUST | One of `"manual"`, `"budget"`, `"unrestricted"` |
+| `available_sats` | when quantitative auto-spend is known | Non-negative integer sats this requestor can spend **now** under auto-approval |
+
+**`policy` meanings:**
+
+- `"manual"`: No lasting auto-approval for this requestor (unknown, or only one-shot approvals so far). The node service MUST omit `available_sats`. Clients MUST NOT invent `0` or treat a missing `available_sats` as an empty wallet; payments may still succeed after interactive approval.
+- `"budget"`: Auto-approval is capped by a frequency budget. `available_sats` MUST be the remaining amount in the current window (including any fee policy the service applies when enforcing that budget).
+- `"unrestricted"`: Auto-approval with no budget cap. `available_sats` MUST be the amount the service will auto-pay for this requestor now (typically underlying spendable funds, when the service exposes that).
+
+### Relationship mapping
+
+Debit relationships are not always lasting grants. A node service may approve a single payment without establishing ongoing auto-approval, grant budgeted or unrestricted auto-approval, or deny/ban a requestor.
+
+| Relationship | Info response |
+|--------------|---------------|
+| No lasting auto-approval | `{ "res": "ok", "policy": "manual" }` |
+| Requestor denied / banned | GFY code `1` |
+| Auto-approval with a frequency budget | `{ "res": "ok", "policy": "budget", "available_sats": <n> }` |
+| Auto-approval with no budget cap | `{ "res": "ok", "policy": "unrestricted", "available_sats": <n> }` |
+
+### Info handling rules
+
+- Info MUST NOT prompt the user or otherwise initiate an authorization / approval flow (unlike direct payment, budget, or unrestricted-access requests).
+- Info does **not** require a prior lasting grant; absence of lasting auto-approval is reported as `policy: "manual"`.
+- Rolling budgets MAY change `available_sats` over time even without new payments. Clients that care about freshness SHOULD poll `info: true` before a spend when the last known `available_sats` is below the intended amount, and SHOULD NOT rely solely on values piggybacked on prior payment responses (multi-client use can also stale cached values).
 
 ## GFY (General Failure to Yield) Handling
 
@@ -301,8 +356,9 @@ Implementations MUST include this tag in both request and response events and SH
     *   It authenticates the request (e.g., checks if the app pubkey is known/allowed).
     *   It evaluates the request against user rules or prompts the user for approval.
 5.  **Response**: Node service sends a kind `21002` response event to the requestor pubkey.
-    *   **Success (Direct Payment)**: Includes `{"res":"ok", "preimage":"..."}`.
+    *   **Success (Direct Payment)**: Includes `{"res":"ok", "preimage":"..."}` (and SHOULD include `policy` / `available_sats` when meaningful).
     *   **Success (Budget Approval)**: Includes `{"res":"ok"}`.
+    *   **Success (Info)**: Includes `{"res":"ok", "policy":"..."}` and `available_sats` when applicable.
     *   **Failure**: Includes `{"res":"GFY", ...}`.
 6.  **Application Handling**: Application receives and processes the response.
 
@@ -335,6 +391,8 @@ Implementations MUST include this tag in both request and response events and SH
 - Implement robust budget tracking (amount, frequency resets).
 - Consider adding fee reserves to budgets based on policy.
 - Implement automatic approval/denial based on user-defined rules (e.g., allow app X up to Y sats per month).
+- Answer `info: true` without initiating user approval prompts; report `policy` and `available_sats` as specified.
+- Include `policy` / `available_sats` on successful payment responses when meaningful.
 
 ### Wallet Client (UI)
 
