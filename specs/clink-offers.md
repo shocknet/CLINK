@@ -190,6 +190,7 @@ To ensure consistent error handling across implementations, this NIP defines the
 - `3`: **Expired or Moved Offer**: The offer has expired, been replaced, or permanently moved.
 - `4`: **Unsupported Feature**: The receiver doesn't support a feature requested by the payer.
 - `5`: **Invalid Amount**: The amount specified is too big or too small.
+- `6`: **Not Found**: The referenced payment is unknown to the service (see [Payment Status Request](#payment-status-request)).
 
 ### Error Response Payloads
 
@@ -248,6 +249,10 @@ The response SHOULD include the acceptable `range` for the amount in sats.
 }
 ```
 
+#### Code 6: Not Found
+Returned in response to a [Payment Status Request](#payment-status-request) when the referenced invoice request is unknown to the service — because it never existed, or because the service no longer retains its state.
+- **Payload**: `{"error": "Not Found", "code": 6}`
+
 ### Protocol Versioning
 
 CLINK events utilize a mandatory `["clink_version", "1"]` tag. This ensures:
@@ -278,6 +283,7 @@ Implementations MUST include this tag in both request and response events and SH
     *   If `ok`, presents the invoice to the user for payment (or pays automatically via NWC/CLINK Debits etc.).
     *   If `error`, displays the reason to the user.
 7.  **Receipt (Optional)**: After successful payment, the receiving service MAY provide a receipt. If the original request was a NIP-57 zap, the service generates and publishes a `kind: 9735` zap receipt. For other interactions, it MAY send a direct `kind: 21001` Payment Receipt event (see below) to the payer.
+8.  **Status Query (Optional)**: At any time after step 5, the payer — or software acting on its behalf, such as a merchant back-end or an LNURL bridge — MAY send a [Payment Status Request](#payment-status-request) to learn whether the invoice has settled, without needing to have been subscribed when the push receipt was published.
 
 ## Implementation Guidance
 
@@ -288,6 +294,7 @@ Implementations MUST include this tag in both request and response events and SH
 - SHOULD handle different offer types (fixed, variable, spontaneous).
 - SHOULD support NIP-57 zap flow integration by including the `zap` payload.
 - MAY use ephemeral keys for requests for enhanced privacy.
+- MAY poll settlement via [Payment Status Requests](#payment-status-request) instead of (or in addition to) listening for the push receipt.
 
 ### Receiving Service
 - MUST generate `noffer` strings correctly.
@@ -297,6 +304,7 @@ Implementations MUST include this tag in both request and response events and SH
 - MUST generate BOLT11 invoices.
 - MUST send Kind `21001` responses (success or error) with NIP-44 encryption.
 - SHOULD handle zap requests according to NIP-57 if supporting zaps.
+- SHOULD answer [Payment Status Requests](#payment-status-request) if it issues Payment Receipts.
 
 ## Security & Privacy Considerations
 - Use NIP-44 for all content encryption.
@@ -341,6 +349,90 @@ The event itself, being signed by the wallet service and referencing the origina
     ```
 
 This flow provides a closed loop for programmatic interactions, allowing the payers application to verify that the payment was received and unlock content or services accordingly.
+
+### Payment Status Request
+
+The receipt above is push-based: it is published once, at settlement time, and — because kind `21001` is ephemeral — it cannot be recovered by a client that was not subscribed at that moment. That excludes an important class of integrations: merchant and point-of-sale software, LNURL-pay bridges, and other request-scoped or stateless clients that need to confirm settlement *after the fact* by polling, the way LNURL's [LUD-21](https://github.com/lnurl/luds/blob/luds/21.md) `verify` endpoint works.
+
+To support these clients, a service that issues Payment Receipts SHOULD also answer **Payment Status Requests**: a pull-based query that returns the receipt payload on demand. This introduces no new payload semantics — only the ability to *request* the status/receipt of a previously requested invoice.
+
+#### Status Request Event
+
+- **Kind**: `21001`
+- **Sender**: Payer (or software acting on the payer's behalf)
+- **Recipient**: Receiving Service
+- **Tags**:
+  - `["p", "<receiver_service_pubkey_hex>"]`
+  - `["clink_version", "1"]`
+- **Content**: NIP-44 encrypted JSON payload:
+
+```json
+{
+  "status_of": "<original_invoice_request_event_id>"
+}
+```
+
+A service distinguishes a status request from an invoice request by the presence of the `status_of` field (and the absence of `offer`). The `status_of` field references the event id of the original [Offer Request](#offer-request-event) whose invoice is being checked. The status request MAY be signed by a different key than the original request (e.g., a fresh ephemeral key); knowledge of the original request event id serves as the authorization capability (see [Authorization & Privacy](#authorization--privacy) below).
+
+#### Status Response Event
+
+- **Kind**: `21001`
+- **Sender**: Receiving Service
+- **Recipient**: Status requester
+- **Tags**:
+  - `["p", "<status_requester_pubkey>"]`
+  - `["e", "<status_request_event_id>"]`
+  - `["clink_version", "1"]`
+- **Content**: NIP-44 encrypted JSON payload, one of:
+
+1.  **Settled — Standard Lightning Payment:**
+    Identical to the push [receipt payload](#decrypted-receipt-payload). The `preimage` MUST be included to prove settlement.
+    ```json
+    {
+      "res": "ok",
+      "preimage": "<64-char_hex_lightning_preimage>"
+    }
+    ```
+    The service SHOULD additionally include the original invoice in a `bolt11` field so a verifier can bind the preimage to the invoice's payment hash without holding separate state:
+    ```json
+    {
+      "res": "ok",
+      "preimage": "<64-char_hex_lightning_preimage>",
+      "bolt11": "<original_BOLT11_invoice_string>"
+    }
+    ```
+
+2.  **Settled — Internal Settlement:**
+    Identical to the push receipt payload for internal settlements. The absence of a `preimage` indicates an internal transaction; the payer's trust in the settlement rests on the service's signature.
+    ```json
+    {
+      "res": "ok"
+    }
+    ```
+
+3.  **Not Settled:**
+    The invoice was issued but has not (yet) been paid. This includes invoices that have expired unpaid.
+    ```json
+    {
+      "res": "pending"
+    }
+    ```
+
+4.  **Unknown:** An [error response](#error-response-payloads) with `code: 6` (**Not Found**) when the referenced request is unknown or its state is no longer retained.
+
+A service that does not support status requests responds with `code: 4` (**Unsupported Feature**), consistent with the existing error semantics. Clients MUST treat `code: 4` as "status unknown" — not as evidence of non-payment — and fall back to the push receipt or out-of-band confirmation.
+
+#### Verification
+
+On receiving `{"res": "ok", "preimage": ...}`, the verifier SHOULD check that `sha256(preimage)` equals the payment hash of the invoice it holds (or of the `bolt11` included in the response). A response whose preimage does not match MUST be treated as unsettled.
+
+#### State Retention
+
+A service supporting status requests SHOULD retain per-invoice settlement state — including the preimage for Lightning settlements — for at least the invoice's expiry window, and SHOULD retain it for a reasonable period after settlement (RECOMMENDED: at least 24 hours). Once state is discarded, the service responds with `code: 6`.
+
+#### Authorization & Privacy
+
+The original request event id acts as a bearer capability: any party that learns it can query payment status and, once settled, obtain the preimage. This is comparable to possession of a LUD-21 `verify` URL. The id is pseudorandom and is only visible to the original requester, the receiving service, and relays that carried the request event. Services requiring stricter guarantees MAY restrict status responses to requests signed by the same pubkey as the original invoice request, at the cost of excluding delegated verifiers.
 
 ## Reference Implementations
 
