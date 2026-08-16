@@ -87,11 +87,13 @@ Expected work scales as `2^bits` SHA-256 event-id trials. One extra bit ≈ 2× 
 
 Blindly hashing at 18 and then discovering the service wants 20 wastes a full mine on weak devices.
 
-**Beacon fast-path (optional):** see [CLINK Beacon](clink-beacon.md). A fresh kind `30078` beacon with `enroll_difficulty` lets clients skip the probe before mining.
+**Beacon fast-path (recommended):** see [CLINK Beacon](clink-beacon.md). A fresh kind `30078` beacon with `enroll_difficulty` lets clients skip the probe before mining.
 
-**Portable discovery (normative):** clients learn difficulty by **probing** — send an Enroll request with no `nonce` tag (or `target_difficulty` `0`). If the service requires PoW, it SHOULD respond with code `5` and `required_difficulty`; the client mines once at that value and retries. Every CLINK Enroll implementation MUST support this path. Portable clients MUST still probe when beacon is missing, stale, or not implemented.
+**Portable discovery (normative):** In the absence of a beacon, clients learn difficulty by **probing** — send an Enroll request with no `nonce` tag (or `target_difficulty` `0`). If the service requires PoW, it SHOULD respond with code `5` and `required_difficulty`; the client mines once at that value and retries. Every CLINK Enroll implementation MUST support this path. Portable clients MUST still probe when beacon is missing, stale, or not implemented.
 
 If the probe receives no response, the client MAY retry Enroll with the recommended **18** bits as a local default. If the service does not require PoW, the probe itself is the Enroll request and a successful response completes enrollment. On code `5`, mine at `required_difficulty` and retry **once**.
+
+**Note:** A huge difficulty from a beacon `enroll_difficulty` or a code `5` `required_difficulty` is a hang vector. Clients SHOULD NOT mine values well beyond the range above (>24): skip the beacon fast-path (probe), or return the GFY instead of remine.
 
 Services that require PoW SHOULD return code `5` + `required_difficulty` on insufficient work so the probe path works.
 
@@ -179,7 +181,7 @@ nprofile (service) + user key
         │
         ▼
   learn difficulty:
-   optional: kind 30078 beacon → enroll_difficulty (see CLINK Beacon)
+   recommended: kind 30078 beacon → enroll_difficulty (see CLINK Beacon)
    portable: Enroll with 0 PoW → code 5 + required_difficulty
         │
         ▼
