@@ -155,7 +155,7 @@ An operator MAY revoke a service without editing the attestation list by publish
 }
 ```
 
-To re-attest after revoke, the operator MUST republish revocation without the `S` tag (and SHOULD keep attestation consistent). Clients SHOULD subscribe to both documents when verifying operator linkage.
+To re-attest after revoke, the operator MUST republish revocation without the corresponding `service` tag and keep attestation consistent. Before treating operator linkage as verified, clients MUST check both the current attestation and revocation documents.
 
 ## Server requirements
 
