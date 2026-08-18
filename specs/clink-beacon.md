@@ -52,7 +52,7 @@ Implementations MUST include this tag in beacon, operator attestation, and revoc
 
 Clients leveraging beacons MUST subscribe on a relay the service is known to use (from `nprofile`, `noffer`, `ndebit`, `nmanage`, prior Enroll, or beacon `relays`).
 
-For operator discovery and verification, clients SHOULD follow **Discovery by operator**. Querying `#operator` on service beacons alone only produces unverified candidates because spoofed services can claim any operator.
+For operator discovery and verification, clients SHOULD follow **Discovery by operator**. An `operator` claim on a service beacon alone is unverified because spoofed services can claim any operator.
 
 ### Publication cadence
 
@@ -113,7 +113,7 @@ The **service pubkey** (beacon event author) is the CLINK backend identity. The 
 2. Subtract any pubkeys on current `clink-node-operator-revoke` (if both list `S`, **revocation wins**).
 3. For each remaining `S`, fetch `clink-node` from author `S` and confirm tag `["operator", "<operator_pubkey_hex>"]`.
 
-Only then may a client show verified “operated by” UI. Starting from `#operator` on service beacons invites affinity scams — spoofed nodes can claim any famous `npub`.
+Only then may a client show verified “operated by” UI. Trusting the `operator` claim on a service beacon alone invites affinity scams — spoofed nodes can claim any famous `npub`.
 
 ### Operator attestation
 
@@ -128,7 +128,7 @@ The operator publishes a separate replaceable event:
 | **Tags** | Required: `["d", "clink-node-operator"]`, `["clink_version", "1"]`. `["service", "<service_pubkey_hex>"]` per attested service. |
 | **Content** | `""` |
 
-Service pubkeys are carried **only** in `service` tags (enables `#service` relay filters). Clients MUST NOT duplicate them in `content`.
+Service pubkeys are carried **only** in `service` tags. Clients inspect these tags after fetching the document by operator author and `d` tag. Clients MUST NOT duplicate them in `content`.
 
 Clients MUST use the **current** attestation and revocation events per NIP-01 replacement rules. Do **not** compare `created_at` across the two documents; membership in the current revocation document wins.
 
@@ -173,7 +173,7 @@ When using a beacon:
 2. **Enroll difficulty** — if `enroll_difficulty` is present and the beacon is valid per **Client staleness** above, clients MAY use it as the Enroll PoW fast-path (see [CLINK Enroll](clink-enroll.md)). Otherwise fall back to the portable Enroll probe path.
 3. **Persona / fees** — clients MAY display `name`, `avatarUrl`, etc., and show `fees` before payment; display is advisory unless cross-checked in a pay response.
 4. **Relays** — clients MAY update preferred relay hints from `relays` when reconnecting or building filters.
-5. **Operator** — clients MUST follow **Discovery by operator** for verified linkage. Unverified `#operator` beacon matches alone MUST NOT show trusted “operated by” UI.
+5. **Operator** — clients MUST follow **Discovery by operator** for verified linkage. An unverified `operator` claim on a service beacon alone MUST NOT show trusted “operated by” UI.
 
 ## Security considerations
 
