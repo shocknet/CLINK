@@ -52,6 +52,8 @@ There is no separate account pointer in an Enroll request: the service pubkey is
   - `["clink_version", "1"]`
 - **Content:** NIP-44 encrypted JSON (same pattern as Offers / Debits / Manage)
 
+Clients MUST accept an Enroll response only if its NIP-01 event ID and signature are valid, its author is the expected service pubkey, its kind and `clink_version` are supported, and its `p` and `e` tags match the requestor pubkey and request event ID.
+
 ### Protocol Versioning
 
 CLINK events utilize a mandatory `["clink_version", "1"]` tag. This ensures:

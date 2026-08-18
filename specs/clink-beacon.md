@@ -103,6 +103,8 @@ All fields are optional. Unknown fields MUST be ignored by clients.
 
 Monetary amounts use **satoshis**, consistent with other CLINK specs.
 
+For a payment amount `amount_sats`, the advertised service fee is the greater of `serviceFeeFloor` and `amount_sats × serviceFeeBps / 10,000`. Services MAY round a fractional result up to the next whole satoshi, since millisatoshis are accounting precision rather than independently settleable value. This remains an advisory disclosure; the payment flow is authoritative.
+
 ### Discovery by operator
 
 The **service pubkey** (beacon event author) is the CLINK backend identity. The **operator pubkey** is the human operator’s everyday Nostr key.
@@ -166,6 +168,8 @@ Services MAY publish a CLINK beacon. If they publish:
 ## Client requirements
 
 Clients MAY subscribe to CLINK beacons when they know service pubkey and relay.
+
+Before using a beacon, clients MUST verify its NIP-01 event ID and signature, required kind and tags, and that its author is the expected service pubkey. Clients verifying operator attestation or revocation documents MUST likewise verify their event IDs, signatures, required kind and tags, and expected operator author.
 
 When using a beacon:
 

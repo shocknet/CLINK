@@ -16,19 +16,19 @@ This approach enables truly spontaneous payments that work seamlessly across all
 
 The static payment code is a single bech32 encoded string (per [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md)). Its human-readable prefix (HRP) is `noffer`. Per bech32, the encoded form is the HRP, a separator character `1`, then the data — so a valid offer string is literally `noffer1<data>` with no colon or other delimiter (e.g. `noffer1qvq...`, not `noffer:noffer1...`). The encoded data includes the following TLV (Type-Length-Value) items:
 
-- `0`: The 32-byte public key of the receiving service (hex encoded).
+- `0`: The 32 raw bytes of the receiving service's public key (represented as hexadecimal outside the encoded pointer).
 - `1`: A recommended relay URL where the receiving service listens for payment requests.
 - `2`: An opaque offer identifier string (defined by the receiving service).
-- `3`: (Optional) A flag indicating the pricing type:
+- `3`: (Optional) A one-byte flag indicating the pricing type:
   - `0`: Fixed price (Price stated in TLV `4`)
   - `1`: Variable price (Price determined by the service upon request, e.g., based on fiat conversion)
   - `2`: Spontaneous payment (Payer specifies the amount in the request)
-- `4`: (Optional) The price in satoshis (integer) primarily for display purposes or fixed price offers.
-- `5`: (Optional) Currency code (e.g., "USD", "EUR") if the price in TLV 4 represents a non-satoshi amount. If present, pricing type `1` (Variable) MUST be used.
+- `4`: (Optional) The price in satoshis (integer), primarily for display purposes or fixed price offers.
+- `5`: (Optional) A currency code (e.g., "USD", "EUR") identifying the reference currency a service uses to determine a variable price. If present, pricing type `1` (Variable) MUST be used and TLV `4` MUST be omitted.
 
 **Default Behavior:** If neither price (TLV `4`) nor pricing type (TLV `3`) is present, the offer SHOULD be treated as type `2` (Spontaneous payment).
 
-**Amount Unit:** Amounts in TLV `4` and request/response payloads are specified in **satoshis**.
+**Amount Unit:** Amounts in TLV `4` and request/response payloads are specified in **whole satoshis**.
 
 **Example Structure:**
 ```
@@ -38,7 +38,7 @@ noffer1...
   2: <offer_id_string>
   3: <pricing_type_flag> (0, 1, or 2, optional)
   4: <price_in_sats> (integer, optional)
-  5: <currency_code> (string, optional, requires type 1)
+  5: <currency_code> (string, optional, requires type 1 and excludes TLV 4)
 ```
 
 ### Display and QR Encoding
@@ -55,7 +55,7 @@ The static payment code is the complete bech32 string: `noffer1<data>`. There is
 
 ### NIP-01 User Metadata
 
-Users or services can advertise a default/primary offer (typically for spontaneous payments) in their kind `0` metadata event using a `clink_offer` field (or similar).
+Users or services can advertise a default/primary offer (typically for spontaneous payments) in their kind `0` metadata event using the `clink_offer` field.
 
 **Example:**
 ```json
@@ -275,7 +275,7 @@ Implementations MUST include this tag in both request and response events and SH
     *   Success: Encrypted payload contains `{"bolt11":"..."}`.
     *   Failure: Encrypted payload contains `{"error":"...","code":...,"range":{"min":...,"max":...}}`.
 6.  **Payment**: Payer's wallet receives the response, decrypts it.
-    *   If `ok`, presents the invoice to the user for payment (or pays automatically via NWC/CLINK Debits etc.).
+    *   If `bolt11` is present, presents the invoice to the user for payment (or pays automatically).
     *   If `error`, displays the reason to the user.
 7.  **Receipt (Optional)**: After successful payment, the receiving service MAY provide a receipt. If the original request was a NIP-57 zap, the service generates and publishes a `kind: 9735` zap receipt. For other interactions, it MAY send a direct `kind: 21001` Payment Receipt event (see below) to the payer.
 
@@ -347,4 +347,4 @@ This flow provides a closed loop for programmatic interactions, allowing the pay
 - **Wallet Node:** [Lightning.Pub](https://github.com/shocknet/Lightning.Pub)
 - **Wallet Client:** [ShockWallet](https://shockwallet.app)
 - **SDK:** [CLINK SDK](https://github.com/shocknet/ClinkSDK)
-- **Demo Client:** [clinkme.dev](https://clinkme.dev/) 
+- **Demo Client:** [clinkme.dev](https://clinkme.dev/)
