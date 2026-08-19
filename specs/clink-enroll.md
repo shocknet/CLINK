@@ -73,7 +73,7 @@ This spec does **not** mandate that every deployment enforce PoW. Operators choo
 1. The request event MUST include a NIP-13 `nonce` tag: `["nonce", "<counter>", "<target_difficulty>"]`.
 2. The event id MUST have at least `target_difficulty` leading zero bits.
 3. `target_difficulty` in the tag MUST be ≥ the service’s required difficulty (committed target — reject “lucky” high-difficulty ids that commit to a lower target).
-4. Unless the request is rate-limited or the key is banned, the service MUST respond to insufficient PoW with error code `5` and `required_difficulty` so the client can remine once without guessing. Rate-limited requests or banned keys MAY receive code `4` or no response.
+4. The service MUST respond to insufficient PoW with error code `5` and `required_difficulty` so the client can remine once without guessing. Code `5` is that failure mode: the work is why enroll does not complete. A request already rejected as invalid, expired, or denied (codes `6`, `3`, `1`) does not require a PoW response. Rate-limited requests or banned keys MAY receive code `4` or no response instead of `5`.
 
 ### Recommended difficulty
 
@@ -91,7 +91,7 @@ Blindly hashing at 18 and then discovering the service wants 20 wastes a full mi
 
 **Beacon fast-path (recommended):** see [CLINK Beacon](clink-beacon.md). A fresh kind `30078` beacon with `enroll_difficulty` lets clients skip the probe before mining.
 
-**Portable discovery (normative):** In the absence of a beacon, clients learn difficulty by **probing** — send an Enroll request with no `nonce` tag (or `target_difficulty` `0`). If the service requires PoW and the request is neither rate-limited nor from a banned key, it MUST return code `5` and `required_difficulty`; the client mines once at that value and retries. Portable clients MUST support this probe and MUST use it when the beacon is missing, stale, or not implemented.
+**Portable discovery (normative):** In the absence of a beacon, clients learn difficulty by **probing** — send an Enroll request with no `nonce` tag (or `target_difficulty` `0`). If insufficient PoW is why the enroll does not complete, the service MUST return code `5` and `required_difficulty`; the client mines once at that value and retries. Portable clients MUST support this probe and MUST use it when the beacon is missing, stale, or not implemented.
 
 If the probe receives no response, the client MAY retry Enroll with the recommended **18** bits as a local default. If the service does not require PoW, the probe itself is the Enroll request and a successful response completes enrollment. On code `5`, mine at `required_difficulty` and retry **once**.
 
