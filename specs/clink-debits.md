@@ -16,7 +16,7 @@ The ideal flow is simple: A user shares their static debit pointer (e.g., via th
 
 A debit request pointer is a bech32 encoded string (per [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md)) prefixed with `ndebit`. The encoded string includes the following TLV (Type-Length-Value) items:
 
-- `0`: The 32-byte public key of the **node service** (hex encoded) — the service that receives kind `21002` events and processes debits.
+- `0`: The 32 raw bytes of the **node service** public key (represented as hexadecimal outside the encoded pointer) — the service that receives kind `21002` events and processes debits.
 - `1`: Relay URL where the node service listens for requests.
 - `2`: (Optional) An opaque pointer identifier string, used by the node service to route or identify the request target (e.g., a specific budget, account, or application).
 - `3`: (Optional) A session identifier (`k1`). Exactly 32 bytes of opaque binary data, used to correlate a single debit attempt (e.g., an ATM withdrawal session). MUST be generated with a cryptographically secure random number generator when present.
@@ -71,7 +71,7 @@ The debit pointer is the complete bech32 string: `ndebit1<data>`. There is no se
 
 ### NIP-01 User Metadata
 
-Users can advertise their primary debit pointer in their kind `0` metadata event using a `clink_debit` field (or similar agreed-upon field name) to allow applications default awareness of their payment source.
+Users can advertise their primary debit pointer in their kind `0` metadata event using the `clink_debit` field to allow applications default awareness of their payment source.
 
 **Example:**
 ```json
@@ -82,8 +82,6 @@ Users can advertise their primary debit pointer in their kind `0` metadata event
   // ...
 }
 ```
-*(Note: The exact field name, like `clink_debit` or `nip68` if backward compatibility is desired, should be finalized)*
-
 ### NIP-05 Lookup
 
 To simplify connecting apps to wallets via NIP-05 identifiers (like Lightning Addresses), NIP-05 servers can include a mapping for debit pointers using the `clink_debit` field.
@@ -326,6 +324,7 @@ Implementations MUST include this tag in both request and response events and SH
 - Validate incoming requests.
 - Send kind `21002` responses (`ok` or `GFY`).
 - Process Lightning payments securely for approved direct payment requests.
+- Allow direct operations signed by the account owner key without a prior third-party authorization grant (see **Owner policy** in [CLINK Enroll](clink-enroll.md)).
 
 **SHOULD:**
 - Provide a UI for users to manage permissions, budgets, and rules.

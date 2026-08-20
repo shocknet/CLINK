@@ -2,7 +2,7 @@
 
 ## Overview
 
-CLINK Manage defines a protocol for delegated management of wallet resources by external applications. Using a bech32-encoded pointer (`nmanage1...`), users can grant external applications specific, auditable rights to manage resources (such as offers) on their wallet server. The protocol is extensible: this document defines the general framework and the first managed resource (offers).
+CLINK Manage defines a protocol for external applications to request management operations on wallet resources. A bech32-encoded pointer (`nmanage1...`) identifies the wallet server and optional account context; the server authenticates the requesting app by its event pubkey and applies the user's delegation rules. The protocol is extensible: this document defines the general framework and the first managed resource (offers).
 
 ## Motivation
 
@@ -11,7 +11,7 @@ Many Lightning and Nostr use-cases require apps to manage resources on behalf of
 ## Pointer Format
 
 A CLINK Manage pointer is a bech32-encoded string (per [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md)) prefixed with `nmanage1`. The encoded TLVs are:
-- `0`: 32-byte pubkey of the user's wallet server (hex encoded)
+- `0`: 32 raw bytes of the user's wallet server pubkey (represented as hexadecimal outside the encoded pointer)
 - `1`: recommended relay URL
 - `2`: (optional) pointer ID (for multi-account, etc.)
 
@@ -75,6 +75,7 @@ Allows an app to create, update, and delete offers on the user's wallet server.
   ```json
   {
     "resource": "offer",
+    "pointer": "<pointer_id>", // Optional
     "action": "list"
   }
   ```
@@ -196,6 +197,7 @@ When a request cannot be fulfilled, the wallet service MAY respond with a GFY er
 - App sends a Kind 21003 request to the wallet server.
 - Wallet server prompts user for approval (or applies rules).
 - On approval, the server creates/updates/deletes the offer and responds.
+- Self-use requests signed by the account owner key do not require a prior third-party delegation grant (see **Owner policy** in [CLINK Enroll](clink-enroll.md)).
 
 #### Security & Rules
 - All requests are signed and auditable.
