@@ -70,9 +70,16 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 | [clinkme.dev](https://clinkme.dev) | Web Demo | Offers, Debits | Demo of a static website using CLINK Offers. |
 | [bxrd.app](https://bxrd.app) | Nostr Client | Offers, Debits | A graph-based Nostr Client with Debit integration for Zaps. |
 | [Amethyst](https://amethyst.social/) | Nostr Client | Offers, Debits | A privacy-focused Nostr client for Android. |
+| [Dark Wisp](https://github.com/barrydeen/dark-wisp-android) | Nostr Client | Offers | Android Nostr client with CLINK offer payments. |
 | [TakeMySats](https://takemysats.com) | Merchant Platform | Offers | Accept sats as payment for your products. |
+| [Zap.Cooking](https://zap.cooking) | Recipe Community | Offers | Nostr-native recipe sharing with CLINK offer payments. |
 | [Woo-CLINK](https://github.com/WoompaLoompa/woo-clink) | E-commerce Plugin | Offers, Debits | Bitcoin Lightning payment gateway for WooCommerce via CLINK. |
-| [Electrum CLINK](https://github.com/BareBits/electrum_clink) | Plugin | Offers | Electrum plugin for receiving Lightning payments via CLINK noffers. |
+| [BTCPay-CLINK](https://github.com/WoompaLoompa/btcpay-clink) | E-commerce Plugin | Offers, Debits | Bitcoin Lightning payments and subscription auto-renew for BTCPay Server via CLINK. |
+| [Vendure-CLINK](https://github.com/WoompaLoompa/vendure-clink) | E-commerce Plugin | Offers | Bitcoin Lightning payment plugin for Vendure via CLINK. |
+| [Medusa-CLINK](https://github.com/WoompaLoompa/medusa-clink) | E-commerce Plugin | Offers, Debits | Bitcoin Lightning payments and subscriptions for Medusa.js via CLINK. |
+| [Electrum CLINK](https://github.com/BareBits/electrum_clink) | Wallet Plugin | Offers | Electrum plugin for receiving Lightning payments via CLINK noffers. |
+| [LNbits-CLINK](https://github.com/WoompaLoompa/lnbits-clink) | LNbits Extension | Offers, Debits | Nostr-native Lightning for LNbits: offers, pay offers, subscriptions auto-renew and funding source via CLINK. |
+
 | *Your project here* | - | - | PR welcome! |
 
 ## Contributing
