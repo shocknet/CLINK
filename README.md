@@ -66,6 +66,7 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 | [Zeus Wallet](https://zeusln.com) | Wallet  | Offers | Pay offers, ZEUS Pay users get an offer by default. |
 | [Bridgelet](https://github.com/shocknet/bridgelet) | Bridge  | Offers         | Simple NIP-05, LNURL and Lightning Address bridge for your custom domain, uses Offers to fetch invoices from your node. |
 | [CLINK SDK](https://www.npmjs.com/package/@shocknet/clink-sdk) | SDK     | Offers, Debits, Manage | JS/TS library for CLINK integration. |
+| [clinkctl](https://github.com/shocknet/clinkctl) | CLI     | Offers, Debits, Enroll | Command-line tool to enroll, invoice, and pay from a shell, script, or agent. |
 | [Stacker.News](https://stacker.news) | Message Board | Offers, Debits | Attach a wallet via CLINK to send and receive zaps. |
 | [clinkme.dev](https://clinkme.dev) | Web Demo | Offers, Debits | Demo of a static website using CLINK Offers. |
 | [bxrd.app](https://bxrd.app) | Nostr Client | Offers, Debits | A graph-based Nostr Client with Debit integration for Zaps. |
@@ -79,7 +80,6 @@ Where NWC is deferential to LNURL and scoped for a specific task, **CLINK is fun
 | [Medusa-CLINK](https://github.com/WoompaLoompa/medusa-clink) | E-commerce Plugin | Offers, Debits | Bitcoin Lightning payments and subscriptions for Medusa.js via CLINK. |
 | [Electrum CLINK](https://github.com/BareBits/electrum_clink) | Wallet Plugin | Offers | Electrum plugin for receiving Lightning payments via CLINK noffers. |
 | [LNbits-CLINK](https://github.com/WoompaLoompa/lnbits-clink) | LNbits Extension | Offers, Debits | Nostr-native Lightning for LNbits: offers, pay offers, subscriptions auto-renew and funding source via CLINK. |
-
 | *Your project here* | - | - | PR welcome! |
 
 ## Contributing
