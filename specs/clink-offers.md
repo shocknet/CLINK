@@ -177,7 +177,17 @@ Sent by the receiving service back to the payer.
       "sig": "<signature>"
     }
     ```
-    *Common reasons might include: an invalid offer (code 1), an expired or moved offer (code 3), or an invalid amount (code 5).*
+    *Common reasons might include: an invalid offer (code 1), an expired or moved offer (code 3), an invalid amount (code 5), or missing payer data (code 6).*
+
+## Payer Data
+
+Offers MAY require extra fields at pay time (set on the offer via [CLINK Manage](clink-manage.md) `payer_data` as a list of names). Those names are not encoded in the `noffer1…` string.
+
+The request `payer_data` field is an object: keys are those names, values are strings, except `quantity` which is an integer (units purchased). This spec does not define email/address formats or other validation — the host accepts or returns `code: 6`.
+
+If `quantity` is in the required list, the host MUST NOT infer `1`. A request without `quantity` MUST get `code: 6` and MUST NOT return `bolt11` — there is no invoice to pay.
+
+If any required keys are missing, the host MUST NOT return `bolt11`. It MUST respond with `code: 6` and `payer_data` as the array of required names so the client can render inputs and retry.
 
 ## Error Handling
 
@@ -190,6 +200,7 @@ To ensure consistent error handling across implementations, this NIP defines the
 - `3`: **Expired or Moved Offer**: The offer has expired, been replaced, or permanently moved.
 - `4`: **Unsupported Feature**: The receiver doesn't support a feature requested by the payer.
 - `5`: **Invalid Amount**: The amount specified is too big or too small.
+- `6`: **Payer Data**: Required `payer_data` keys are missing or rejected.
 
 ### Error Response Payloads
 
@@ -248,6 +259,18 @@ The response SHOULD include the acceptable `range` for the amount in sats.
 }
 ```
 
+#### Code 6: Payer Data
+The offer requires `payer_data` keys that were omitted or rejected. The payload MUST include `payer_data` as an array of required field names. Clients SHOULD collect those keys (text inputs; `quantity` as an integer) and retry the request. This spec does not define other value types or formats — the host accepts or rejects.
+
+- **Payload**:
+```json
+{
+  "error": "Payer data required",
+  "code": 6,
+  "payer_data": ["quantity", "email", "address"]
+}
+```
+
 ### Protocol Versioning
 
 CLINK events utilize a mandatory `["clink_version", "1"]` tag. This ensures:
@@ -268,6 +291,7 @@ Implementations MUST include this tag in both request and response events and SH
 4.  **Service Processing**: Receiving service listens for Kind `21001` events.
     *   Decrypts payload.
     *   Validates the `offer` ID and `amount_sats` against offer parameters.
+    *   If the offer requires `payer_data` keys and they are missing or rejected, responds with `code: 6` and the required key names (no invoice).
     *   (If variable price) Calculates the current price in sats.
     *   (If zap) Processes the `zap` event.
     *   Generates a BOLT11 Lightning invoice.
