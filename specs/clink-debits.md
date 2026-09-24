@@ -157,6 +157,7 @@ Sent to the node service identified by the key and pointer.
 
 **Notes on Request Payload:**
 - The node service MAY require `amount_sats` even for direct payments to process rules without decoding the invoice, but MUST verify the invoice amount upon payment.
+- Lowercase `bolt11` before compare, store, and pay.
 - For budget requests, omitting `frequency` implies a one-time budget.
 - A request with no `bolt11`, no `amount_sats`, and no `frequency` is implicitly a request for unrestricted access linked to the `pointer` (or the node service pubkey if `pointer` is absent), subject to node service policy and user approval.
 
@@ -166,9 +167,10 @@ The `k1` field correlates a kind `21002` debit request with a specific session a
 
 - When debiting from a **session ndebit** (ndebit with a session identifier in TLV `3`), the requestor MUST set `k1` to the lowercase hexadecimal encoding of the 32-byte TLV `3` value.
 - When debiting from a **static pointer** (no TLV `3`), the requestor MUST omit `k1`.
-- The node service SHOULD treat each `k1` as single-use within the scope of the target `pointer` (or node service pubkey if `pointer` is absent) and SHOULD reject or ignore reuse of a previously consumed `k1`.
-- A `k1` is **consumed** when the node service accepts a valid request for approval or payout processing. Structural failures (e.g., cannot decrypt, malformed event) and payload validation failures (e.g., invalid amount, un-decodable BOLT11) MUST NOT consume `k1`; the requestor MAY retry the same `k1` with a corrected request.
-- While a session is pending approval or payout, the node service SHOULD reject a duplicate `k1` with a GFY response (e.g., code `6`).
+- A session `k1` is valid only on a **direct payment** request: `bolt11` present and `frequency` absent. The node service MUST reject any other shape that carries `k1` with GFY code `6` and MUST NOT consume `k1`.
+- The node service MUST hold each `k1` (per `pointer`, or node service pubkey if `pointer` is absent) from the moment it accepts a valid payment for approval or payout. A malformed request MUST NOT take the hold.
+- Hold ends on payout success, application denial of the live request, or confirmed-failed payout. Success keeps the `k1` consumed. Denial or confirmed-fail MUST release the hold; the requestor MAY send a new invoice with the same `k1`.
+- A second **customer** payment request with a held or successfully consumed `k1` MUST be rejected with GFY code `6` and `"reason": "k1_already_processed"`. Application approval of a live request is authorization to pay; a later approval after a denial is still an approval.
 - The `k1` field in the JSON payload is the hex representation; TLV `3` in the ndebit is the binary form of the same session identifier.
 
 ### Response Event
@@ -218,18 +220,18 @@ Sent by the node service upon completing or rejecting a debit request. The kind 
 
 ## GFY (General Failure to Yield) Handling
 
-When a request cannot be fulfilled, the node service MAY respond with a GFY error code.
+Rejected or unfulfillable requests MUST receive a GFY. Rate-limited, abusive, undecryptable, and unsupported-version events MAY be dropped.
 
 GFY responses on kind `21002` are always addressed to the **requestor** (the pubkey that signed the request). How the node service notifies the application (e.g., an ATM) of approval, settlement, or post-approval failure is implementation-specific and outside this specification.
 
 **GFY Codes:**
 
-- `1`: Request Denied (User or rule denied the request; may precede reporting)
+- `1`: Request Denied Warning (User or rule denied the request; may precede reporting)
 - `2`: Temporary Failure (Node service issue, e.g., node offline)
 - `3`: Expired Request (Request timestamp too old, e.g., >30s delta)
 - `4`: Rate Limited (Requestor sending too many requests)
 - `5`: Invalid Amount (Amount outside acceptable range or budget)
-- `6`: Invalid Request (Malformed payload, missing fields, etc.)
+- `6`: Invalid Request (Malformed payload, missing fields, duplicate `k1`, or replay of a `bolt11` that is in-flight, already paid, or already failed)
 
 **GFY Response Payload Structure (Decrypted `content`):**
 ```json
@@ -243,14 +245,15 @@ GFY responses on kind `21002` are always addressed to the **requestor** (the pub
 
 **Expected Payloads for Specific GFY Codes:**
 
-1.  **Code 1 (Request Denied):**
+1.  **Code 1 (Request Denied Warning):**
     ```json
-    {"res": "GFY", "code": 1, "error": "Request Denied"}
+    {"res": "GFY", "code": 1, "error": "Request Denied Warning"}
     ```
 2.  **Code 2 (Temporary Failure):**
     ```json
-    {"res": "GFY", "code": 2, "error": "Temporary Failure: <reason>"}
+    {"res": "GFY", "code": 2, "error": "Temporary Failure"}
     ```
+    Implementations MAY append a useful detail (`"Temporary Failure: node offline"`). Do not invent a token if there is nothing the requestor can act on.
 3.  **Code 3 (Expired Request):**
     ```json
     {
@@ -274,9 +277,16 @@ GFY responses on kind `21002` are always addressed to the **requestor** (the pub
     ```
 6.  **Code 6 (Invalid Request):**
     ```json
-    {"res": "GFY", "code": 6, "error": "Invalid Request: <reason>"}
+    {"res": "GFY", "code": 6, "error": "Invalid Request: <human text>", "reason": "<reason>"}
     ```
-    e.g. duplicate `k1` while session pending: `"K1 already processed"`
+    `reason` MUST be present when the requestor has to branch. It is the protocol key; `error` is human-readable and MUST NOT be matched.
+
+    - `k1_already_processed` — this `k1` is held or already succeeded
+    - `invoice_in_progress` — payout of this `bolt11` is already running
+    - `invoice_already_failed` — this `bolt11` already failed; submit a new invoice
+    - `invoice_already_paid` — this `bolt11` already settled
+
+    `reason` MAY be omitted for generic malformed payloads.
 
 Requestors MUST handle GFY responses gracefully.
 
@@ -322,14 +332,15 @@ Implementations MUST include this tag in both request and response events and SH
 **MUST:**
 - Listen for kind `21002` events on specified relays (or relays user configures).
 - Validate incoming requests.
-- Send kind `21002` responses (`ok` or `GFY`).
+- Send kind `21002` responses (`ok` or `GFY`) as specified in **GFY Handling**.
 - Process Lightning payments securely for approved direct payment requests.
 - Allow direct operations signed by the account owner key without a prior third-party authorization grant (see **Owner policy** in [CLINK Enroll](clink-enroll.md)).
+- Hold session `k1` as specified in **Session Identifiers (`k1`)**. Implementations MAY drop released attempt records after a retention window.
+- Reject in-progress, paid, or failed `bolt11` replay as specified in **GFY Handling**.
 
 **SHOULD:**
 - Provide a UI for users to manage permissions, budgets, and rules.
 - Distinguish between direct payment and budget requests in approval prompts.
-- Track pending and consumed `k1` values per `pointer` and reject duplicate session identifiers.
 - Handle request idempotency or replacement (e.g., only process the latest request from a given app pubkey if multiple are pending).
 - Implement robust budget tracking (amount, frequency resets).
 - Consider adding fee reserves to budgets based on policy.
@@ -357,7 +368,7 @@ Implementations MUST include this tag in both request and response events and SH
 - Obtain the user's `ndebit` pointer.
 - Send well-formed kind `21002` request events.
 - Listen for kind `21002` response events via Nostr subscriptions.
-- Handle `ok` and `GFY` responses appropriately.
+- Handle `ok` and `GFY` responses as specified in **GFY Handling**.
 
 **MUST (session flows):**
 - When minting session ndebit QRs, generate a fresh 32-byte session identifier (TLV `3`) per session and encode a new `ndebit1...` string for each QR.
@@ -375,7 +386,7 @@ Implementations MUST include this tag in both request and response events and SH
 3.  **User Education**: Users must understand the implications of granting permissions, especially for automatic approvals or recurring budgets.
 4.  **Abuse Prevention**: Node services should consider rate limiting, reputation tracking (e.g., NIP-56 integration), or other mechanisms to discourage spam/abuse.
 5.  **Atomic Operations**: Node services should ensure payment processing and budget deduction are atomic to prevent race conditions or overspending.
-6.  **Session Identifiers**: Node services that accept `k1` SHOULD treat each value as single-use within the scope of the target `pointer`. Implementations that correlate sessions with an application (e.g., an ATM) MUST NOT rely on amount alone; approval coordination is outside the scope of this specification and typically done with a management RPC.
+6.  **Session Identifiers**: A syntactically valid `k1` is not approval; hold behavior is specified in **Session Identifiers (`k1`)**. An application (e.g. an ATM) keys the session by `k1` and checks the forwarded invoice against that session's expected amount. Approval coordination is outside this specification and typically done with a management RPC.
 
 ## Handling Fluctuating Amounts (e.g., Fiat Pricing)
 
