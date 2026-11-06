@@ -132,8 +132,8 @@ Sent by the payer's wallet to the receiving service.
 ```json
 {
     "offer": "<offer_id_string>", // From noffer TLV 2
-    "amount_sats": <amount_in_sats_integer>, // Required for spontaneous/variable, optional otherwise
-    "payer_data": { ... }, // Optional: Arbitrary JSON object with payer info (e.g., NIP-05, name, pubkey)
+    "amount_sats": <amount_in_sats_integer>, // Required for spontaneous pricing; optional otherwise (see Quantity and Pricing)
+    "payer_data": { ... }, // Optional unless required by the offer; string values except numeric quantity
     "zap": "{...}", // Optional: Stringified JSON of kind 9734 zap request event for NIP-57 flow
     "expires_in_seconds": <number_of_seconds_integer>, // Optional: Requested invoice expiry time
     "description": "<string>" // Optional: A description to be included in the invoice, max 100 chars
@@ -181,13 +181,27 @@ Sent by the receiving service back to the payer.
 
 ## Payer Data
 
-Offers MAY require extra fields at pay time (set on the offer via [CLINK Manage](clink-manage.md) `payer_data` as a list of names). Those names are not encoded in the `noffer1…` string.
+Offers MAY require extra fields at pay time (set on the offer via [CLINK Manage](clink-manage.md) `payer_data` as a list of names). Those names are not encoded in the `noffer1...` string.
 
-The request `payer_data` field is an object: keys are those names, values are strings, except `quantity` which is an integer (units purchased). This spec does not define email/address formats or other validation — the host accepts or returns `code: 6`.
+The request `payer_data` field is an object: keys are those names, values are strings, except `quantity` which MUST be a JSON number representing a positive integer no greater than `9007199254740991` (units purchased). Numeric strings such as `"2"` are not valid quantities. This spec does not define email/address formats or other field-specific validation.
 
-If `quantity` is in the required list, the host MUST NOT infer `1`. A request without `quantity` MUST get `code: 6` and MUST NOT return `bolt11` — there is no invoice to pay.
+For an otherwise valid request identifying a known offer with required payer fields, an omitted `payer_data` object, a non-object value (including an array), a missing required key, or a rejected required value MUST produce `code: 6` with `payer_data` as the full array of required names. The host MUST NOT return `bolt11`. Clients SHOULD collect or correct those fields and retry; clients MUST NOT rely on the human-readable `error` text to identify this response.
 
-If any required keys are missing, the host MUST NOT return `bolt11`. It MUST respond with `code: 6` and `payer_data` as the array of required names so the client can render inputs and retry.
+If `quantity` is in the required list, the host MUST NOT infer `1` when it is omitted or invalid. Fields not in the required list MUST NOT affect pricing or seller fulfillment data. In particular, an unsolicited `quantity` MUST NOT multiply the amount.
+
+### Quantity and Pricing
+
+Quantity does not introduce a new price category or require a price in the encoded offer. The host MUST first determine the unit price in whole satoshis according to the existing pricing type:
+
+- **Fixed (`0`):** The host's configured fixed price is the unit price. TLV `4`, when present, advertises that unit price.
+- **Variable (`1`):** The host determines the current unit price at request time, for example by converting its reference-currency price to satoshis. TLV `4` is not required; when TLV `5` is present, TLV `4` MUST be omitted. A payer-supplied `amount_sats` MUST NOT override the host's resolved price.
+- **Spontaneous (`2`, including the default):** The request's `amount_sats` supplies the unit price when `quantity` is required; otherwise it supplies the invoice amount as before.
+
+When the offer requires `quantity`, the invoice amount MUST be the resolved unit price multiplied by the validated quantity. The host MUST validate the final total against its amount limits and MUST NOT issue an invoice if the total is out of range or cannot be represented exactly as a whole-satoshi integer no greater than `9007199254740991`. Such a total is an amount failure (`code: 5`), not a payer-data failure. For these requests, the code-5 `range` describes acceptable invoice totals, not unit prices.
+
+For example, a variable-price offer may contain no satoshi price. If the host resolves its current unit price to 1,000 sats and the request supplies `quantity: 3`, the invoice is for 3,000 sats. The same multiplication applies to a fixed unit price or a spontaneous unit amount of 1,000 sats.
+
+The host MUST retain the accepted quantity with the other required payer fields on the invoice record and make it available through any seller fulfillment callback it supports. The wallet MUST verify the returned invoice amount before payment and obtain payer approval for the total; it MUST NOT assume an encoded price is present or sufficient to price a variable offer.
 
 ## Error Handling
 
@@ -195,12 +209,14 @@ To ensure consistent error handling across implementations, this NIP defines the
 
 ### Error Codes
 
-- `1`: **Invalid Offer**: The requested offer ID is invalid or no longer available.
+- `1`: **Invalid Offer**: The requested offer ID is invalid or no longer available, or the request is malformed apart from the recoverable payer-data cases below.
 - `2`: **Temporary Failure**: The receiver is temporarily unable to process the request.
 - `3`: **Expired or Moved Offer**: The offer has expired, been replaced, or permanently moved.
 - `4`: **Unsupported Feature**: The receiver doesn't support a feature requested by the payer.
 - `5`: **Invalid Amount**: The amount specified is too big or too small.
 - `6`: **Payer Data**: Required `payer_data` keys are missing or rejected.
+
+These codes are scoped to CLINK Offers (kind `21001`); code `6` here is not the invalid-request code used by other CLINK operations.
 
 ### Error Response Payloads
 
@@ -215,6 +231,7 @@ Error responses are sent as kind `21001` events with an encrypted `content` fiel
 ```
 
 #### Code 1: Invalid Offer
+Malformed requests (for example, a missing offer identifier or an invalid top-level field type) also use code `1`. This response MUST NOT include the payer-data discovery array; recoverable required payer-field failures use code `6` instead.
 - **Payload**: `{"error": "Invalid Offer", "code": 1}`
 
 #### Code 2: Temporary Failure
@@ -260,7 +277,7 @@ The response SHOULD include the acceptable `range` for the amount in sats.
 ```
 
 #### Code 6: Payer Data
-The offer requires `payer_data` keys that were omitted or rejected. The payload MUST include `payer_data` as an array of required field names. Clients SHOULD collect those keys (text inputs; `quantity` as an integer) and retry the request. This spec does not define other value types or formats — the host accepts or rejects.
+The offer requires `payer_data` keys that were omitted or rejected. The payload MUST include `payer_data` as the full array of required field names and MUST NOT include `bolt11`. Clients SHOULD collect or correct those fields (text inputs; `quantity` as a positive integer) and retry the request. A repeated rejection SHOULD be shown to the payer rather than retried indefinitely without changes.
 
 - **Payload**:
 ```json
@@ -285,7 +302,7 @@ Implementations MUST include this tag in both request and response events and SH
 2.  **Decoding**: Payer's wallet decodes the `noffer` to get service pubkey, relay hint, offer ID, and pricing info.
 3.  **Request**: Payer's wallet constructs and sends a Kind `21001` request event to the relay, addressed to the service pubkey.
     *   Includes `offer` ID.
-    *   Includes `amount_sats` if offer type is spontaneous (`2`) or variable (`1`).
+    *   Includes `amount_sats` if offer type is spontaneous (`2`); variable pricing (`1`) is resolved by the host.
     *   Optionally includes `payer_data`.
     *   Optionally includes `zap` payload if performing a NIP-57 zap.
 4.  **Service Processing**: Receiving service listens for Kind `21001` events.
@@ -293,6 +310,7 @@ Implementations MUST include this tag in both request and response events and SH
     *   Validates the `offer` ID and `amount_sats` against offer parameters.
     *   If the offer requires `payer_data` keys and they are missing or rejected, responds with `code: 6` and the required key names (no invoice).
     *   (If variable price) Calculates the current price in sats.
+    *   If `quantity` is required, multiplies the unit price by the validated quantity and checks the invoice total against amount limits.
     *   (If zap) Processes the `zap` event.
     *   Generates a BOLT11 Lightning invoice.
 5.  **Response**: Service sends a Kind `21001` response event back to the payer's pubkey.
