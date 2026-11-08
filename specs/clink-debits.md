@@ -169,8 +169,10 @@ The `k1` field correlates a kind `21002` debit request with a specific session a
 - When debiting from a **static pointer** (no TLV `3`), the requestor MUST omit `k1`.
 - A session `k1` is valid only on a **direct payment** request: `bolt11` present and `frequency` absent. The node service MUST reject any other shape that carries `k1` with GFY code `6` and MUST NOT consume `k1`.
 - The node service MUST hold each `k1` (per `pointer`, or node service pubkey if `pointer` is absent) from the moment it accepts a valid payment for approval or payout. A malformed request MUST NOT take the hold.
-- Hold ends on payout success, application denial of the live request, or confirmed-failed payout. Success keeps the `k1` consumed. Denial or confirmed-fail MUST release the hold; the requestor MAY send a new invoice with the same `k1`.
-- A second **customer** payment request with a held or successfully consumed `k1` MUST be rejected with GFY code `6` and `"reason": "k1_already_processed"`. Application approval of a live request is authorization to pay; a later approval after a denial is still an approval.
+- Hold ends on payout success, application denial of the live request, confirmed-failed payout, or expiry of an abandoned approval request under the policy below. Success keeps the `k1` consumed. Denial or confirmed-fail MUST release the hold; the requestor MAY send a new invoice with the same `k1`.
+- Services MAY expire abandoned requests awaiting approval and release or prune their holds, provided no payout has been accepted for the expired request. Expiry MUST invalidate approval of that attempt; a subsequent customer request using the same `k1` requires its own authorization. The retention period is implementation-specific.
+- A timeout, restart, or retention window MUST NOT clear replay protection for an accepted payout that is still in-flight or whose outcome is unknown. A successful payout MUST remain consumed across restarts; a confirmed failure releases it as above.
+- A second **customer** payment request with a held or successfully consumed `k1` MUST be rejected with GFY code `6` and `"reason": "k1_already_processed"`. Application approval of a live request is authorization to pay; a later approval after a denial is still an approval unless that attempt has expired.
 - The `k1` field in the JSON payload is the hex representation; TLV `3` in the ndebit is the binary form of the same session identifier.
 
 ### Response Event
@@ -335,7 +337,7 @@ Implementations MUST include this tag in both request and response events and SH
 - Send kind `21002` responses (`ok` or `GFY`) as specified in **GFY Handling**.
 - Process Lightning payments securely for approved direct payment requests.
 - Allow direct operations signed by the account owner key without a prior third-party authorization grant (see **Owner policy** in [CLINK Enroll](clink-enroll.md)).
-- Hold session `k1` as specified in **Session Identifiers (`k1`)**. Implementations MAY drop released attempt records after a retention window.
+- Hold session `k1` as specified in **Session Identifiers (`k1`)**. Implementations MAY drop released attempt records and safely expired approval attempts after a retention window, but MUST retain replay protection for successful, in-flight, or unknown-outcome payouts.
 - Reject in-progress, paid, or failed `bolt11` replay as specified in **GFY Handling**.
 
 **SHOULD:**
