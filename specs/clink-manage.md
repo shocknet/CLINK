@@ -38,10 +38,12 @@ Allows an app to create, update, and delete offers on the user's wallet server.
     "pointer": "<pointer_id>", // Optional
     "action": "create",
     "offer": {
-      "label": "Product X",
-      "price_sats": 12345,
-      "callback_url": "https://example-marketplace.app/callback/123",
-      "payer_data": ["email", "shipping_address"]
+      "fields": {
+        "label": "Product X",
+        "price_sats": 12345,
+        "callback_url": "https://example-marketplace.app/callback/123",
+        "payer_data": ["email", "shipping_address"]
+      }
     }
   }
   ```
