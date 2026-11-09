@@ -23,12 +23,14 @@ The static payment code is a single bech32 encoded string (per [NIP-19](https://
   - `0`: Fixed price (Price stated in TLV `4`)
   - `1`: Variable price (Price determined by the service upon request, e.g., based on fiat conversion)
   - `2`: Spontaneous payment (Payer specifies the amount in the request)
-- `4`: (Optional) The price in satoshis (integer), primarily for display purposes or fixed price offers.
+- `4`: (Optional) The price in satoshis, encoded as a nonempty unsigned big-endian integer from `0` through `9007199254740991`, primarily for display purposes or fixed price offers.
 - `5`: (Optional) A currency code (e.g., "USD", "EUR") identifying the reference currency a service uses to determine a variable price. If present, pricing type `1` (Variable) MUST be used and TLV `4` MUST be omitted.
 
 **Default Behavior:** If neither price (TLV `4`) nor pricing type (TLV `3`) is present, the offer SHOULD be treated as type `2` (Spontaneous payment).
 
 **Amount Unit:** Amounts in TLV `4` and request/response payloads are specified in **whole satoshis**.
+
+**Price Encoding (TLV `4`):** The value is 1 to 255 bytes, subject to the numerical bound above. Decoders MUST accept leading zero bytes and MUST reject empty or out-of-range values rather than rounding or truncating. To preserve existing offer encodings, encoders SHOULD use four bytes for values from `0` through `4294967295` and the shortest sufficient byte width for larger values. An explicitly supplied zero price is encoded as zero, not treated as an absent TLV. TLV `5` excludes TLV `4` even when the price is zero.
 
 **Example Structure:**
 ```
