@@ -309,10 +309,9 @@ Implementations MUST include this tag in both request and response events and SH
     *   Optionally includes `zap` payload if performing a NIP-57 zap.
 4.  **Service Processing**: Receiving service listens for Kind `21001` events.
     *   Decrypts payload.
-    *   Validates the `offer` ID and `amount_sats` against offer parameters.
+    *   Validates the `offer` ID and request structure.
     *   If the offer requires `payer_data` keys and they are missing or rejected, responds with `code: 6` and the required key names (no invoice).
-    *   (If variable price) Calculates the current price in sats.
-    *   If `quantity` is required, multiplies the unit price by the validated quantity and checks the invoice total against amount limits.
+    *   Resolves the unit price (fixed offer price, host-calculated variable price, or spontaneous `amount_sats`), multiplies by validated `quantity` when required, and checks the invoice total against amount limits.
     *   (If zap) Processes the `zap` event.
     *   Generates a BOLT11 Lightning invoice.
 5.  **Response**: Service sends a Kind `21001` response event back to the payer's pubkey.
